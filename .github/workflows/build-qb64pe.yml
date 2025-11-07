@@ -148,18 +148,14 @@ jobs:
       - name: Detect ENTRY_BAS (*nix)
         run: |
           set -euo pipefail
-          if [ -n "${ENTRY_BAS:-}" ] && [ -f "$ENTRY_BAS" ]; then
-            found="$ENTRY_BAS"
-          elif [ -f "src/main.bas" ]; then
-            found="src/main.bas"
-          elif [ -f "main.bas" ]; then
-            found="main.bas"
-          else
-            found="$(find . -type f -name '*.bas' | head -n1 || true)"
-          fi
-          [ -n "${found:-}" ] || { echo "No .BAS file found. Set env ENTRY_BAS or add a file."; exit 1; }
+          candidates=("src/main.bas" "main.bas" "Hello.BAS" "*.bas")
+          found=""
+          for pat in "${candidates[@]}"; do
+            f="$(find . -type f -name "$pat" -not -path "*/.github/*" | head -n1)"
+            if [ -n "$f" ]; then found="$f"; break; fi
+          done
+          [ -n "$found" ] || { echo "No valid .BAS file found (excluding .github). Add your program BAS."; exit 1; }
           echo "ENTRY_BAS=$found" >> "$GITHUB_ENV"
-
       - name: Compile BAS (macOS ARM, CLI only)
         run: |
           set -euo pipefail
@@ -167,7 +163,6 @@ jobs:
           [ -f "$ENTRY_BAS" ] || { echo "ENTRY_BAS not found: $ENTRY_BAS"; exit 1; }
           mkdir -p build
           "$qb" -x "$ENTRY_BAS" -o "build/${APP_NAME}-macOS-ARM"
-
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ env.APP_NAME }}-macOS-ARM
