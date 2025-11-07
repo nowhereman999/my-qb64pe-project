@@ -1,98 +1,126 @@
-name: Build QB64PE Binaries
+name: Build (QB64-PE matrix)
 
 on:
   push:
     branches: [ main ]
   pull_request:
-    branches: [ main ]
-  release:
-    types: [ published ]  # Optional: Trigger on tags for releases
+
+env:
+  APP_NAME: MyProgram             # change to your program name (no extension)
+  ENTRY_BAS: src/main.bas         # change to your entry .BAS file path
+  QB64PE_REPO: https://github.com/QB64-Phoenix-Edition/QB64pe.git
 
 jobs:
-  build:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        include:
-          - os: ubuntu-latest
-            platform: lnx
-            ext: tar.gz
-            arch_label: x64
-          - os: windows-latest
-            platform: win-x64
-            ext: zip
-            arch_label: x64
-          - os: macos-15-intel  # For x86_64/Intel
-            platform: osx
-            ext: tar.gz
-            arch_label: x86_64
-          - os: macos-latest  # For ARM64/M1+
-            platform: osx
-            ext: tar.gz
-            arch_label: arm64
-          - os: ubuntu-24.04-arm
-            platform: lnx-aarch64
-            ext: tar.gz
-            arch_label: arm64-rpi
+  # -------- macOS Intel (x86_64) --------
+  macos-intel:
+    runs-on: macos-13
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Get latest QB64PE release
-        id: get_release
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const response = await github.rest.repos.getLatestRelease({
-              owner: 'QB64-Phoenix-Edition',
-              repo: 'QB64pe'
-            });
-            const tag = response.data.tag_name;
-            const version = tag.replace(/^v/, '');
-            core.setOutput('tag', tag);
-            core.setOutput('version', version);
-
-      - name: Install Linux dependencies (if applicable)
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt update
-          sudo apt install -y build-essential git libgl1-mesa-dev libglu1-mesa-dev libasound2-dev libpulse-dev freeglut3-dev libcurl4-openssl-dev clang lld
-
-      - name: Set up QB64PE
-        env:
-          DOWNLOAD_URL: https://github.com/QB64-Phoenix-Edition/QB64pe/releases/download/${{ steps.get_release.outputs.tag }}/qb64pe_${{ matrix.platform }}-${{ steps.get_release.outputs.version }}.${{ matrix.ext }}
-        run: |
-          if [ '${{ runner.os }}' == 'Linux' ] || [ '${{ runner.os }}' == 'macOS' ]; then
-            curl -L "$DOWNLOAD_URL" -o qb64pe.${{ matrix.ext }}
-            tar xzf qb64pe.${{ matrix.ext }}
-            cd qb64pe
-            chmod +x qb64  # Ensure executable
-            cd ..
-          else  # Windows
-            curl.exe -L -o qb64pe.zip "$env:DOWNLOAD_URL"
-            powershell Expand-Archive qb64pe.zip -DestinationPath .
-          fi
-
-      - name: Compile program
+      - uses: actions/checkout@v4
+      - name: Clone QB64-PE
+        run: git clone --depth=1 "$QB64PE_REPO" qb64pe
+      - name: Build QB64-PE tool
         run: |
           cd qb64pe
-          if [ '${{ runner.os }}' == 'Windows' ]; then
-            .\qb64.exe -c ..\Hello.BAS
-          else
-            ./qb64 -c ../Hello.BAS
-          fi
-          cd ..
-
-      - name: Upload binary artifact
-        uses: actions/upload-artifact@v4
+          ./setup_osx.command
+      - name: Compile BAS (macOS Intel)
+        run: |
+          ./qb64pe/qb64pe -x "$ENTRY_BAS" -o "build/${{ env.APP_NAME }}-macOS-Intel"
+      - uses: actions/upload-artifact@v4
         with:
-          name: Hello-${{ matrix.os }}-${{ matrix.arch_label }}
-          path: qb64pe/Hello*
-          retention-days: 30  # Keep artifacts for 30 days
+          name: ${{ env.APP_NAME }}-macOS-Intel
+          path: build/${{ env.APP_NAME }}-macOS-Intel
 
-      - name: Create Release (optional, on tags)
-        if: github.event_name == 'release' && github.event.action == 'published'
-        uses: softprops/action-gh-release@v2
+  # -------- macOS Apple Silicon (arm64) --------
+  macos-arm:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Clone QB64-PE
+        run: git clone --depth=1 "$QB64PE_REPO" qb64pe
+      - name: Build QB64-PE tool
+        run: |
+          cd qb64pe
+          ./setup_osx.command
+      - name: Compile BAS (macOS ARM)
+        run: |
+          ./qb64pe/qb64pe -x "$ENTRY_BAS" -o "build/${{ env.APP_NAME }}-macOS-ARM"
+      - uses: actions/upload-artifact@v4
         with:
-          files: qb64pe/Hello*
-          generate_release_notes: true
+          name: ${{ env.APP_NAME }}-macOS-ARM
+          path: build/${{ env.APP_NAME }}-macOS-ARM
+
+  # -------- Ubuntu Linux x86_64 --------
+  linux-x64:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install deps (OpenGL/ALSA/etc.)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential git \
+            libgl1-mesa-dev libglu1-mesa-dev freeglut3-dev \
+            libx11-dev libxext-dev libxi-dev libxrandr-dev libxinerama-dev libxcursor-dev \
+            libasound2-dev libpulse-dev libudev-dev
+      - name: Clone QB64-PE
+        run: git clone --depth=1 "$QB64PE_REPO" qb64pe
+      - name: Build QB64-PE tool
+        run: |
+          cd qb64pe
+          ./setup_lnx.sh
+      - name: Compile BAS (Linux x64)
+        run: |
+          ./qb64pe/qb64pe -x "$ENTRY_BAS" -o "build/${{ env.APP_NAME }}-linux-x64"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.APP_NAME }}-linux-x64
+          path: build/${{ env.APP_NAME }}-linux-x64
+
+  # -------- Windows x64 --------
+  windows-x64:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download prebuilt QB64-PE (Windows)
+        shell: pwsh
+        run: |
+          # grab latest release archive (Windows). Adjust pattern if needed.
+          $release = Invoke-RestMethod https://api.github.com/repos/QB64-Phoenix-Edition/QB64pe/releases/latest
+          $asset = $release.assets | Where-Object { $_.name -match "windows" -and $_.name -match "\.7z$" } | Select-Object -First 1
+          Invoke-WebRequest $asset.browser_download_url -OutFile qb64pe.7z
+          7z x qb64pe.7z -oqb64pe
+      - name: Compile BAS (Windows)
+        shell: pwsh
+        run: |
+          .\qb64pe\qb64pe.exe -x "$env:ENTRY_BAS" -o "build\${env:APP_NAME}-windows.exe"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.APP_NAME }}-windows
+          path: build/${{ env.APP_NAME }}-windows.exe
+
+  # -------- Raspberry Pi (self-hosted) --------
+  # Set up a self-hosted runner on your Pi (labels: self-hosted, Linux, ARM64 or ARM)
+  raspberry-pi:
+    if: ${{ always() }}  # let it try if you have a Pi runner; otherwise it will be skipped
+    runs-on: [self-hosted, Linux, ARM64]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install deps (may need sudo)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential git \
+            libgl1-mesa-dev libglu1-mesa-dev freeglut3-dev \
+            libx11-dev libxext-dev libxi-dev libxrandr-dev libxinerama-dev libxcursor-dev \
+            libasound2-dev libpulse-dev libudev-dev
+      - name: Clone QB64-PE
+        run: git clone --depth=1 "$QB64PE_REPO" qb64pe
+      - name: Build QB64-PE tool (Pi)
+        run: |
+          cd qb64pe
+          ./setup_lnx.sh
+      - name: Compile BAS (Pi native)
+        run: |
+          ./qb64pe/qb64pe -x "$ENTRY_BAS" -o "build/${{ env.APP_NAME }}-raspi"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.APP_NAME }}-raspi
+          path: build/${{ env.APP_NAME }}-raspi
