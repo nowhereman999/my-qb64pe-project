@@ -70,7 +70,7 @@ jobs:
           if [ '${{ runner.os }}' == 'Linux' ] || [ '${{ runner.os }}' == 'macOS' ]; then
             curl -L "$DOWNLOAD_URL" -o qb64pe.${{ matrix.ext }}
             tar xzf qb64pe.${{ matrix.ext }}
-            cd qb64
+            cd qb64pe
             if [ -n "${{ matrix.setup }}" ]; then
               chmod +x ${{ matrix.setup }}
               ./${{ matrix.setup }}
@@ -84,7 +84,7 @@ jobs:
 
       - name: Compile program
         run: |
-          cd qb64
+          cd qb64pe
           if [ '${{ runner.os }}' == 'Windows' ]; then
             .\qb64.exe -c ..\Hello.BAS
           else
@@ -96,12 +96,12 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Hello-${{ matrix.os }}-${{ matrix.arch_label }}
-          path: qb64/Hello*
+          path: qb64pe/Hello*
           retention-days: 30  # Keep artifacts for 30 days
 
       - name: Create Release (optional, on tags)
         if: github.event_name == 'release' && github.event.action == 'published'
         uses: softprops/action-gh-release@v2
         with:
-          files: qb64/Hello*
+          files: qb64pe/Hello*
           generate_release_notes: true
