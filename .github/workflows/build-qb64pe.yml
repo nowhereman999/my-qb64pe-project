@@ -6,8 +6,8 @@ on:
   pull_request:
 
 env:
-  APP_NAME: MyProgram             # change to your program name (no extension)
-  ENTRY_BAS: src/main.bas         # change to your entry .BAS path
+  APP_NAME: MyProgram             # <-- change to your program name (no extension)
+  ENTRY_BAS: src/main.bas         # <-- change to your entry .BAS path
   API_URL: https://api.github.com/repos/QB64-Phoenix-Edition/QB64pe/releases/latest
 
 jobs:
@@ -65,11 +65,11 @@ jobs:
         run: |
           set -euo pipefail
           release="$(curl -fsSL "$API_URL")"
-          url="$(printf '%s' "$release" | /usr/bin/python3 -c 'import sys,json,re
-rel=json.load(sys.stdin)
-for a in rel.get("assets", []):
-    if re.search(r"^qb64pe_mac-x64.*\.(zip|tar\.gz)$", a["name"]):
-        print(a["browser_download_url"]); break')"
+          url="$(printf '%s\n' "$release" \
+            | grep -Eo '"browser_download_url": *"[^"]+"' \
+            | sed -E 's/.*"([^"]+)"/\1/' \
+            | grep -E 'qb64pe_mac-x64.*\.(zip|tar\.gz)$' \
+            | head -n1)"
           [ -n "$url" ] || { echo "No macOS x64 asset found."; exit 1; }
           name="$(basename "$url")"
           curl -fsSL "$url" -o "$name"
@@ -102,11 +102,11 @@ for a in rel.get("assets", []):
         run: |
           set -euo pipefail
           release="$(curl -fsSL "$API_URL")"
-          url="$(printf '%s' "$release" | /usr/bin/python3 -c 'import sys,json,re
-rel=json.load(sys.stdin)
-for a in rel.get("assets", []):
-    if re.search(r"^qb64pe_mac-arm64.*\.(zip|tar\.gz)$", a["name"]):
-        print(a["browser_download_url"]); break')"
+          url="$(printf '%s\n' "$release" \
+            | grep -Eo '"browser_download_url": *"[^"]+"' \
+            | sed -E 's/.*"([^"]+)"/\1/' \
+            | grep -E 'qb64pe_mac-arm64.*\.(zip|tar\.gz)$' \
+            | head -n1)"
           [ -n "$url" ] || { echo "No macOS arm64 asset found."; exit 1; }
           name="$(basename "$url")"
           curl -fsSL "$url" -o "$name"
@@ -139,11 +139,11 @@ for a in rel.get("assets", []):
         run: |
           set -euo pipefail
           release="$(curl -fsSL "$API_URL")"
-          url="$(printf '%s' "$release" | python3 -c 'import sys,json,re
-rel=json.load(sys.stdin)
-for a in rel.get("assets", []):
-    if re.search(r"^qb64pe_linux-(x64|amd64).*\.(tar\.gz|zip)$", a["name"]):
-        print(a["browser_download_url"]); break')"
+          url="$(printf '%s\n' "$release" \
+            | grep -Eo '"browser_download_url": *"[^"]+"' \
+            | sed -E 's/.*"([^"]+)"/\1/' \
+            | grep -E 'qb64pe_linux-(x64|amd64).*\.(tar\.gz|zip)$' \
+            | head -n1)"
           [ -n "$url" ] || { echo "No Linux x64 asset found."; exit 1; }
           name="$(basename "$url")"
           curl -fsSL "$url" -o "$name"
@@ -177,11 +177,11 @@ for a in rel.get("assets", []):
         run: |
           set -euo pipefail
           release="$(curl -fsSL "$API_URL")"
-          url="$(printf '%s' "$release" | python3 -c 'import sys,json,re
-rel=json.load(sys.stdin)
-for a in rel.get("assets", []):
-    if re.search(r"^qb64pe_linux-(arm64|aarch64|armhf).*\.(tar\.gz|zip)$", a["name"], re.I):
-        print(a["browser_download_url"]); break')"
+          url="$(printf '%s\n' "$release" \
+            | grep -Eo '"browser_download_url": *"[^"]+"' \
+            | sed -E 's/.*"([^"]+)"/\1/' \
+            | grep -Ei 'qb64pe_linux-(arm64|aarch64|armhf).*\.(tar\.gz|zip)$' \
+            | head -n1)"
           [ -n "$url" ] || { echo "No Linux ARM (Pi) asset found."; exit 1; }
           name="$(basename "$url")"
           curl -fsSL "$url" -o "$name"
