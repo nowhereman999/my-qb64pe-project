@@ -6,8 +6,8 @@ on:
   pull_request:
 
 env:
-  APP_NAME: MyProgram             # <-- change to your program name (no extension)
-  ENTRY_BAS: src/main.bas         # <-- change to your entry .BAS path
+  APP_NAME: MyProgram             # change to your program name (no extension)
+  ENTRY_BAS: src/main.bas         # change to your entry .BAS path
   API_URL: https://api.github.com/repos/QB64-Phoenix-Edition/QB64pe/releases/latest
 
 jobs:
@@ -17,7 +17,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # 7-Zip is needed for .7z assets
       - name: Ensure 7-Zip
         shell: pwsh
         run: |
@@ -66,14 +65,11 @@ jobs:
         run: |
           set -euo pipefail
           release="$(curl -fsSL "$API_URL")"
-          url="$(python3 - <<'PY'
-import sys, json, re
+          url="$(printf '%s' "$release" | /usr/bin/python3 -c 'import sys,json,re
 rel=json.load(sys.stdin)
 for a in rel.get("assets", []):
     if re.search(r"^qb64pe_mac-x64.*\.(zip|tar\.gz)$", a["name"]):
-        print(a["browser_download_url"]); break
-PY
-)" <<<"$release"
+        print(a["browser_download_url"]); break')"
           [ -n "$url" ] || { echo "No macOS x64 asset found."; exit 1; }
           name="$(basename "$url")"
           curl -fsSL "$url" -o "$name"
@@ -106,14 +102,11 @@ PY
         run: |
           set -euo pipefail
           release="$(curl -fsSL "$API_URL")"
-          url="$(python3 - <<'PY'
-import sys, json, re
+          url="$(printf '%s' "$release" | /usr/bin/python3 -c 'import sys,json,re
 rel=json.load(sys.stdin)
 for a in rel.get("assets", []):
     if re.search(r"^qb64pe_mac-arm64.*\.(zip|tar\.gz)$", a["name"]):
-        print(a["browser_download_url"]); break
-PY
-)" <<<"$release"
+        print(a["browser_download_url"]); break')"
           [ -n "$url" ] || { echo "No macOS arm64 asset found."; exit 1; }
           name="$(basename "$url")"
           curl -fsSL "$url" -o "$name"
@@ -146,14 +139,11 @@ PY
         run: |
           set -euo pipefail
           release="$(curl -fsSL "$API_URL")"
-          url="$(python3 - <<'PY'
-import sys, json, re
+          url="$(printf '%s' "$release" | python3 -c 'import sys,json,re
 rel=json.load(sys.stdin)
 for a in rel.get("assets", []):
     if re.search(r"^qb64pe_linux-(x64|amd64).*\.(tar\.gz|zip)$", a["name"]):
-        print(a["browser_download_url"]); break
-PY
-)" <<<"$release"
+        print(a["browser_download_url"]); break')"
           [ -n "$url" ] || { echo "No Linux x64 asset found."; exit 1; }
           name="$(basename "$url")"
           curl -fsSL "$url" -o "$name"
@@ -178,9 +168,8 @@ PY
           path: build/${{ env.APP_NAME }}-linux-x64
 
   # -------------------- Raspberry Pi (self-hosted) --------------------
-  # Add a self-hosted runner on your Pi with labels: self-hosted, Linux, ARM64 (or ARM).
   raspberry-pi:
-    if: ${{ always() }}  # runs if a Pi runner is available; otherwise silently skipped
+    if: ${{ always() }}
     runs-on: [self-hosted, Linux, ARM64]
     steps:
       - uses: actions/checkout@v4
@@ -188,15 +177,11 @@ PY
         run: |
           set -euo pipefail
           release="$(curl -fsSL "$API_URL")"
-          url="$(python3 - <<'PY'
-import sys, json, re
+          url="$(printf '%s' "$release" | python3 -c 'import sys,json,re
 rel=json.load(sys.stdin)
 for a in rel.get("assets", []):
-    # Try common ARM names (arm64/aarch64/armhf)
     if re.search(r"^qb64pe_linux-(arm64|aarch64|armhf).*\.(tar\.gz|zip)$", a["name"], re.I):
-        print(a["browser_download_url"]); break
-PY
-)" <<<"$release"
+        print(a["browser_download_url"]); break')"
           [ -n "$url" ] || { echo "No Linux ARM (Pi) asset found."; exit 1; }
           name="$(basename "$url")"
           curl -fsSL "$url" -o "$name"
