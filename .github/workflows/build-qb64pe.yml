@@ -24,12 +24,12 @@ jobs:
             ext: zip
             setup: ''
             arch_label: x64
-          - os: macos-15-intel  # Updated from macos-12 (x86_64/Intel)
+          - os: macos-15-intel  # For x86_64/Intel
             platform: osx
             ext: tar.gz
             setup: setup_osx.command
             arch_label: x86_64
-          - os: macos-latest  # Updated from macos-13 (ARM64/M1+)
+          - os: macos-latest  # For ARM64/M1+
             platform: osx
             ext: tar.gz
             setup: setup_osx.command
@@ -67,34 +67,43 @@ jobs:
         env:
           DOWNLOAD_URL: https://github.com/QB64-Phoenix-Edition/QB64pe/releases/download/${{ steps.get_release.outputs.tag }}/qb64pe_${{ matrix.platform }}-${{ steps.get_release.outputs.version }}.${{ matrix.ext }}
         run: |
+          extract_dir="qb64pe_${{ matrix.platform }}-${{ steps.get_release.outputs.version }}"
           if [ '${{ runner.os }}' == 'Linux' ] || [ '${{ runner.os }}' == 'macOS' ]; then
             curl -L "$DOWNLOAD_URL" -o qb64pe.${{ matrix.ext }}
             tar xzf qb64pe.${{ matrix.ext }}
-            chmod +x ${{ matrix.setup }}
-            ./${{ matrix.setup }}  # Run setup from current dir (no mv or cd needed)
+            cd "$extract_dir"
+            if [ -n "${{ matrix.setup }}" ]; then
+              chmod +x ${{ matrix.setup }}
+              ./${{ matrix.setup }}
+            fi
+            cd ..
           else  # Windows
             curl.exe -L -o qb64pe.zip "$env:DOWNLOAD_URL"
             powershell Expand-Archive qb64pe.zip -DestinationPath .
+            # Assuming extract_dir exists; no setup for Windows
           fi
 
       - name: Compile program
         run: |
+          extract_dir="qb64pe_${{ matrix.platform }}-${{ steps.get_release.outputs.version }}"
+          cd "$extract_dir"
           if [ '${{ runner.os }}' == 'Windows' ]; then
             .\qb64.exe -c ..\Hello.BAS
           else
             ./qb64 -c ../Hello.BAS
           fi
+          cd ..
 
       - name: Upload binary artifact
         uses: actions/upload-artifact@v4
         with:
           name: Hello-${{ matrix.os }}-${{ matrix.arch_label }}
-          path: Hello*
+          path: qb64pe_${{ matrix.platform }}-${{ steps.get_release.outputs.version }}/Hello*
           retention-days: 30  # Keep artifacts for 30 days
 
       - name: Create Release (optional, on tags)
         if: github.event_name == 'release' && github.event.action == 'published'
         uses: softprops/action-gh-release@v2
         with:
-          files: Hello*
+          files: qb64pe_${{ matrix.platform }}-${{ steps.get_release.outputs.version }}/Hello*
           generate_release_notes: true
