@@ -148,7 +148,7 @@ jobs:
       - name: Detect ENTRY_BAS (*nix)
         run: |
           set -euo pipefail
-          candidates=("src/main.bas" "main.bas" "Hello.BAS" "*.bas")
+          candidates=("src/main.bas" "./main.bas" "./Hello.BAS" "./*.bas")
           found=""
           for pat in "${candidates[@]}"; do
             f="$(find . -type f -name "$pat" -not -path "*/.github/*" | head -n1)"
