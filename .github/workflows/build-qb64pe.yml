@@ -46,7 +46,7 @@ jobs:
       - name: Detect ENTRY_BAS (Windows)
         shell: pwsh
         run: |
-          $candidates = @("$env:ENTRY_BAS", "src\main.bas", "main.bas")
+          $candidates = @("$env:ENTRY_BAS", "./Hello.BAS", "Hello.BAS")
           $found = $null
           foreach ($p in $candidates) {
             if ($p -and (Test-Path $p)) { $found = $p; break }
