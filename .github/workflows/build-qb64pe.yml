@@ -17,27 +17,22 @@ jobs:
           - os: ubuntu-latest
             platform: lnx
             ext: tar.gz
-            setup: setup_lnx.sh
             arch_label: x64
           - os: windows-latest
             platform: win-x64
             ext: zip
-            setup: ''
             arch_label: x64
           - os: macos-15-intel  # For x86_64/Intel
             platform: osx
             ext: tar.gz
-            setup: setup_osx.command
             arch_label: x86_64
           - os: macos-latest  # For ARM64/M1+
             platform: osx
             ext: tar.gz
-            setup: setup_osx.command
             arch_label: arm64
           - os: ubuntu-24.04-arm
             platform: lnx-aarch64
             ext: tar.gz
-            setup: setup_lnx.sh
             arch_label: arm64-rpi
     steps:
       - name: Checkout code
@@ -71,15 +66,11 @@ jobs:
             curl -L "$DOWNLOAD_URL" -o qb64pe.${{ matrix.ext }}
             tar xzf qb64pe.${{ matrix.ext }}
             cd qb64pe
-            if [ -n "${{ matrix.setup }}" ]; then
-              chmod +x ${{ matrix.setup }}
-              ./${{ matrix.setup }}
-            fi
+            chmod +x qb64  # Ensure executable
             cd ..
           else  # Windows
             curl.exe -L -o qb64pe.zip "$env:DOWNLOAD_URL"
             powershell Expand-Archive qb64pe.zip -DestinationPath .
-            # No setup for Windows
           fi
 
       - name: Compile program
