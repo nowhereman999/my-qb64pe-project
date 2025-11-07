@@ -77,68 +77,68 @@ jobs:
 
   # -------- Windows x64 --------
   windows-x64:
-  runs-on: windows-latest
-  steps:
-    - uses: actions/checkout@v4
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
 
-    # Ensure 7-Zip is available (needed if the asset is .7z)
-    - name: Install 7-Zip
-      shell: pwsh
-      run: |
-        choco install -y 7zip
-        $env:Path += ";C:\Program Files\7-Zip"
-        7z i | Out-Null
+      # Ensure 7-Zip is available (needed if the asset is .7z)
+      - name: Install 7-Zip
+        shell: pwsh
+        run: |
+          choco install -y 7zip
+          $env:Path += ";C:\Program Files\7-Zip"
+          7z i | Out-Null
 
-    - name: Download QB64-PE (Windows) asset via API (no gh)
-      shell: pwsh
-      env:
-        API: https://api.github.com/repos/QB64-Phoenix-Edition/QB64pe/releases/latest
-      run: |
-        # Grab latest release payload
-        $release = Invoke-RestMethod $env:API
+      - name: Download QB64-PE (Windows) asset via API (no gh)
+        shell: pwsh
+        env:
+          API: https://api.github.com/repos/QB64-Phoenix-Edition/QB64pe/releases/latest
+        run: |
+          # Grab latest release payload
+          $release = Invoke-RestMethod $env:API
+  
+          # Try to find a Windows asset: qb64pe_win-*.7z or .zip
+          $asset = $release.assets | Where-Object {
+            $_.name -match '^qb64pe_win-(x64|arm64).*\.(7z|zip)$'
+          } | Select-Object -First 1
 
-        # Try to find a Windows asset: qb64pe_win-*.7z or .zip
-        $asset = $release.assets | Where-Object {
-          $_.name -match '^qb64pe_win-(x64|arm64).*\.(7z|zip)$'
-        } | Select-Object -First 1
+          if (-not $asset) {
+            throw "No Windows asset (qb64pe_win-*.7z/.zip) found in latest release."
+          }
 
-        if (-not $asset) {
-          throw "No Windows asset (qb64pe_win-*.7z/.zip) found in latest release."
-        }
+          Write-Host "Downloading $($asset.name)"
+          $out = if ($asset.name -match '\.7z$') { 'qb64pe.7z' } else { 'qb64pe.zip' }
+          Invoke-WebRequest $asset.browser_download_url -OutFile $out
 
-        Write-Host "Downloading $($asset.name)"
-        $out = if ($asset.name -match '\.7z$') { 'qb64pe.7z' } else { 'qb64pe.zip' }
-        Invoke-WebRequest $asset.browser_download_url -OutFile $out
+          New-Item -ItemType Directory -Force -Path qb64pe | Out-Null
+          if (Test-Path qb64pe.7z) {
+            7z x qb64pe.7z -oqb64pe | Out-Null
+          } else {
+            Expand-Archive qb64pe.zip -DestinationPath qb64pe -Force
+          }
 
-        New-Item -ItemType Directory -Force -Path qb64pe | Out-Null
-        if (Test-Path qb64pe.7z) {
-          7z x qb64pe.7z -oqb64pe | Out-Null
-        } else {
-          Expand-Archive qb64pe.zip -DestinationPath qb64pe -Force
-        }
+          # Locate qb64pe.exe in the extracted tree (directory name can vary)
+          $exe = Get-ChildItem -Path qb64pe -Recurse -Filter qb64pe.exe -File | Select-Object -First 1
+          if (-not $exe) { throw "qb64pe.exe not found after extraction." }
+          "$($exe.FullName)" | Out-File -FilePath qb64pe_path.txt -Encoding ascii
 
-        # Locate qb64pe.exe in the extracted tree (directory name can vary)
-        $exe = Get-ChildItem -Path qb64pe -Recurse -Filter qb64pe.exe -File | Select-Object -First 1
-        if (-not $exe) { throw "qb64pe.exe not found after extraction." }
-        "$($exe.FullName)" | Out-File -FilePath qb64pe_path.txt -Encoding ascii
+      - name: Compile BAS (Windows)
+        shell: pwsh
+        env:
+          APP_NAME: ${{ env.APP_NAME }}
+          ENTRY_BAS: ${{ env.ENTRY_BAS }}
+        run: |
+          $qb = Get-Content qb64pe_path.txt -Raw
+          if (-not (Test-Path $env:ENTRY_BAS)) {
+            throw "ENTRY_BAS not found: $env:ENTRY_BAS (check your repo path)."
+          }
+          New-Item -ItemType Directory -Force -Path build | Out-Null
+          & $qb -x "$env:ENTRY_BAS" -o "build\${env:APP_NAME}-windows.exe"
 
-    - name: Compile BAS (Windows)
-      shell: pwsh
-      env:
-        APP_NAME: ${{ env.APP_NAME }}
-        ENTRY_BAS: ${{ env.ENTRY_BAS }}
-      run: |
-        $qb = Get-Content qb64pe_path.txt -Raw
-        if (-not (Test-Path $env:ENTRY_BAS)) {
-          throw "ENTRY_BAS not found: $env:ENTRY_BAS (check your repo path)."
-        }
-        New-Item -ItemType Directory -Force -Path build | Out-Null
-        & $qb -x "$env:ENTRY_BAS" -o "build\${env:APP_NAME}-windows.exe"
-
-    - uses: actions/upload-artifact@v4
-      with:
-        name: ${{ env.APP_NAME }}-windows
-        path: build/${{ env.APP_NAME }}-windows.exe
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.APP_NAME }}-windows
+          path: build/${{ env.APP_NAME }}-windows.exe
 
   # -------- Raspberry Pi (self-hosted) --------
   # Set up a self-hosted runner on your Pi (labels: self-hosted, Linux, ARM64 or ARM)
