@@ -135,29 +135,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download prebuilt QB64-PE (macOS arm64)
+      - name: Use Uploaded QB64PE (macOS ARM)
         run: |
           set -euo pipefail
-          release="$(curl -fsSL "$API_URL")"
-          url="$(printf '%s\n' "$release" \
-            | grep -Eo '"browser_download_url": *"[^"]+"' \
-            | sed -E 's/.*"([^"]+)"/\1/' \
-            | grep -E '(qb64pe_(osx|mac)-(arm64|aarch64).*\.(tar\.gz|zip))$' \
-            | head -n1)"
-          [ -n "$url" ] || { echo "No macOS arm64 asset found."; exit 1; }
-          name="$(basename "$url")"
-          curl -fsSL "$url" -o "$name"
           mkdir -p qb64pe
-          case "$name" in
-            *.zip)    unzip -q "$name" -d qb64pe ;;
-            *.tar.gz) tar -xzf "$name" -C qb64pe ;;
-          esac
-          qb="$(/usr/bin/find qb64pe -type f \( -name 'qb64pe' -o -name 'QB64-PE' \) | head -n1)"
-          if [ -z "$qb" ]; then
-            qb="$(/usr/bin/find qb64pe -type f -path '*/QB64-PE.app/Contents/MacOS/*' | head -n1)"
-          fi
-          [ -n "$qb" ] || { echo "qb64pe CLI not found"; exit 1; }
-          chmod +x "$qb" || true
+          cp tools/qb64pe_mac_arm/qb64pe qb64pe/qb64pe  # Copy from repo to working dir
+          qb="qb64pe/qb64pe"
+          chmod +x "$qb"
+          [ -x "$qb" ] || { echo "QB64PE not executable"; exit 1; }
           echo "$qb" > qb64pe_path.txt
 
       - name: Detect ENTRY_BAS (*nix)
