@@ -89,10 +89,10 @@ jobs:
           set -euo pipefail
           release="$(curl -fsSL "$API_URL")"
           url="$(printf '%s\n' "$release" \
-            | grep -Eo '"browser_download_url": *"[^"]+"' \
-            | sed -E 's/.*"([^"]+)"/\1/' \
-            | grep -E 'qb64pe_mac-x64.*\.(zip|tar\.gz)$' \
-            | head -n1)"
+           | grep -Eo '"browser_download_url": *"[^"]+"' \
+           | sed -E 's/.*"([^"]+)"/\1/' \
+           | grep -E 'qb64pe_osx-.*\.(tar\.gz)$' \
+           | head -n1)"
           [ -n "$url" ] || { echo "No macOS x64 asset found."; exit 1; }
           name="$(basename "$url")"
           curl -fsSL "$url" -o "$name"
@@ -141,10 +141,10 @@ jobs:
           set -euo pipefail
           release="$(curl -fsSL "$API_URL")"
           url="$(printf '%s\n' "$release" \
-            | grep -Eo '"browser_download_url": *"[^"]+"' \
-            | sed -E 's/.*"([^"]+)"/\1/' \
-            | grep -E 'qb64pe_mac-arm64.*\.(zip|tar\.gz)$' \
-            | head -n1)"
+           | grep -Eo '"browser_download_url": *"[^"]+"' \
+           | sed -E 's/.*"([^"]+)"/\1/' \
+           | grep -E 'qb64pe_osx-.*\.(tar\.gz)$' \
+           | head -n1)"
           [ -n "$url" ] || { echo "No macOS arm64 asset found."; exit 1; }
           name="$(basename "$url")"
           curl -fsSL "$url" -o "$name"
