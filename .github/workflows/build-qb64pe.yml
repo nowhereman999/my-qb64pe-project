@@ -1,100 +1,118 @@
-name: Build QB64-PE Linux (source → compile)
+name: Build QB64-PE from source (Linux)
 
 on:
-  workflow_dispatch:      # lets you run it manually
   push:
     branches: [ main ]
-  pull_request:
-    branches: [ main ]
+  workflow_dispatch:
 
 permissions:
-  contents: write       # needed to create a release / upload assets
+  contents: read
+
+env:
+  APP_NAME: MyProgram
+  ENTRY_BAS: src/main.bas
 
 jobs:
-  build-linux:
+  build-qb64pe-src:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      # -------------------------------------------------
-      # 1. Download latest source-code release
-      # -------------------------------------------------
-      - name: Get latest source release URL
-        id: release
+      # (Often preinstalled, but harmless to ensure basics are present)
+      - name: Install build prerequisites
         run: |
-          API_URL="https://api.github.com/repos/QB64-Phoenix-Edition/QB64pe/releases/latest"
-          URL=$(curl -fsSL "$API_URL" \
-                | jq -r '.assets[] | select(.name | contains("src") and endswith(".tar.gz")) | .browser_download_url' \
-                | head -n1)
-          echo "Source URL: $URL"
-          echo "url=$URL" >> $GITHUB_OUTPUT
-
-      - name: Download source archive
-        if: steps.release.outputs.url != ''
-        run: |
-          curl -fsSL -o qb64pe-src.tar.gz "${{ steps.release.outputs.url }}"
-
-      - name: Extract source
-        run: |
-          mkdir -p qb64pe-src
-          tar -xzf qb64pe-src.tar.gz -C qb64pe-src --strip-components=1
-          ls -R qb64pe-src
-
-      # -------------------------------------------------
-      # 2. Compile using setup_lnx.sh
-      # -------------------------------------------------
-      - name: Install build dependencies
-        run: |
+          set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y build-essential libgl1-mesa-dev libglu1-mesa-dev \
-                                  libasound2-dev libpulse-dev libx11-dev libxi-dev \
-                                  libxext-dev libxxf86vm-dev libxrandr-dev libxcursor-dev
+          sudo apt-get install -y \
+            build-essential curl ca-certificates unzip tar \
+            libx11-dev libxext-dev libxrender-dev libxrandr-dev libxi-dev \
+            libxinerama-dev libxcursor-dev \
+            libgl1-mesa-dev libglu1-mesa-dev \
+            libasound2-dev libpulse-dev \
+            libpng-dev zlib1g-dev
 
-      - name: Run setup_lnx.sh (CLI-only)
-        working-directory: qb64pe-src
+      - name: Download QB64-PE Linux source tarball
+        env:
+          API_URL: https://api.github.com/repos/QB64-Phoenix-Edition/QB64pe/releases/latest
         run: |
-          chmod +x ./setup_lnx.sh
-          ./setup_lnx.sh -cli   # builds only the CLI version (no GUI)
+          set -euo pipefail
+          rel="$(curl -fsSL "$API_URL")"
 
-      # -------------------------------------------------
-      # 3. Verify the binary exists
-      # -------------------------------------------------
-      - name: Check compiled binary
+          # Pick a *source* archive, not prebuilt; avoid anything with 'lnx' without 'src'
+          url="$(printf '%s\n' "$rel" \
+            | grep -Eo '"browser_download_url": *"[^"]+"' \
+            | sed -E 's/.*"([^"]+)".*/\1/' \
+            | grep -Ei 'qb64pe_.*(src|source).*\.(tar\.gz|zip)$' \
+            | head -n1 || true)"
+
+          [ -n "${url:-}" ] || { echo "No Linux *source* asset found."; exit 1; }
+
+          name="$(basename "$url")"
+          curl -fsSL "$url" -o "$name"
+
+          # Extract to the workspace root and detect top-level folder name
+          case "$name" in
+            *.zip)
+              unzip -q "$name"
+              ;;
+            *.tar.gz)
+              tar -xzf "$name"
+              ;;
+          esac
+
+          # Detect the top-level extracted directory (portable)
+          toplevel="$(
+            case "$name" in
+              *.zip) unzip -Z1 "$name" | head -1 | cut -d/ -f1 ;;
+              *.tar.gz) tar -tzf "$name" | head -1 | cut -d/ -f1 ;;
+            esac
+          )"
+
+          [ -n "$toplevel" ] || { echo "Failed to detect extracted top-level dir"; exit 1; }
+          echo "SRC_TOP=$toplevel" >> "$GITHUB_ENV"
+
+      - name: Build QB64-PE (setup_lnx.sh)
         run: |
-          BINARY="qb64pe-src/qb64pe"
-          if [ ! -f "$BINARY" ]; then
-            echo "qb64pe binary not found!"
-            ls -la qb64pe-src/
+          set -euo pipefail
+          cd "$SRC_TOP"
+
+          # The setup script lives in the source root for QB64-PE
+          if [ ! -x "./setup_lnx.sh" ]; then
+            echo "setup_lnx.sh not found in $PWD. Contents:"
+            find . -maxdepth 2 -type f | sed 's/^/  /'
             exit 1
           fi
-          chmod +x "$BINARY"
-          file "$BINARY"
-          ./"$BINARY" -v || true   # just show version
 
-      # -------------------------------------------------
-      # 4. Upload as artifact (available for 90 days)
-      # -------------------------------------------------
-      - name: Upload qb64pe binary as artifact
+          # Build QB64-PE from source
+          ./setup_lnx.sh
+
+          # Locate the freshly built qb64pe binary and its folder
+          qb_path="$(find . -type f -name qb64pe -perm -111 | head -n1 || true)"
+          [ -n "$qb_path" ] || { echo "qb64pe binary not found after build"; exit 1; }
+
+          qb_dir="$(dirname "$qb_path")"
+          echo "QB_DIR=$qb_dir" >> "$GITHUB_ENV"
+          echo "QB_BIN=$qb_path" >> "$GITHUB_ENV"
+
+      - name: Upload built QB64-PE (for later reuse)
         uses: actions/upload-artifact@v4
         with:
-          name: qb64pe-linux-x64
-          path: qb64pe-src/qb64pe
-          if-no-files-found: error
+          name: qb64pe-linux-built
+          path: ${{ env.SRC_TOP }}/${{ env.QB_DIR }}
 
-      # -------------------------------------------------
-      # 5. Create a GitHub Release with the binary (permanent)
-      # -------------------------------------------------
-      - name: Create Release & upload binary
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # -------- Optional: compile your BASIC entry if present ----------
+      - name: Compile your BASIC (if src/main.bas exists)
+        if: ${{ hashFiles(env.ENTRY_BAS) != '' }}
         run: |
-          TAG="linux-$(date +%Y%m%d-%H%M%S)"
-          gh release create "$TAG" \
-            --title "QB64-PE Linux CLI ${{ github.sha }}" \
-            --notes "Automated build from source on $(date). Commit: ${{ github.sha }}" \
-            qb64pe-src/qb64pe
+          set -euo pipefail
+          [ -x "${QB_BIN:?}" ] || { echo "QB_BIN not executable"; exit 1; }
+          [ -f "${ENTRY_BAS:?}" ] || { echo "ENTRY_BAS not found: $ENTRY_BAS"; exit 1; }
+          mkdir -p build
+          "${QB_BIN}" -x "$ENTRY_BAS" -o "build/${APP_NAME}-linux-x64"
 
-          echo "Release created: $TAG"
-          echo "Download it from: https://github.com/${{ github.repository }}/releases/tag/$TAG"
+      - name: Upload compiled app (if built)
+        if: ${{ hashFiles('build/*') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.APP_NAME }}-linux-x64
+          path: build/${{ env.APP_NAME }}-linux-x64
