@@ -1,77 +1,100 @@
-name: Build (QB64-PE prebuilt, CLI-only)
+name: Build QB64-PE Linux (source → compile)
 
 on:
+  workflow_dispatch:      # lets you run it manually
   push:
     branches: [ main ]
   pull_request:
+    branches: [ main ]
 
 permissions:
-  contents: read
-
-env:
-  APP_NAME: MyProgram
-  ENTRY_BAS: src/main.bas
-  API_URL: https://api.github.com/repos/QB64-Phoenix-Edition/QB64pe/releases/latest
+  contents: write       # needed to create a release / upload assets
 
 jobs:
-  linux-x64:
+  build-linux:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Download prebuilt QB64-PE (Linux x64)
+      # -------------------------------------------------
+      # 1. Download latest source-code release
+      # -------------------------------------------------
+      - name: Get latest source release URL
+        id: release
         run: |
-          set -euo pipefail
-          release="$(curl -fsSL "$API_URL")"
-          url="$(printf '%s\n' "$release" \
-            | grep -Eo '"browser_download_url": *"[^"]+"' \
-            | sed -E 's/.*"([^"]+)"/\1/' \
-            | grep -E '(qb64pe_(lnx|linux).*\.(tar\.gz|zip))$' \
-            | grep -Ev '(src|source)' \
-            | head -n1)"
-          [ -n "$url" ] || { echo "No Linux prebuilt asset found."; exit 1; }
-          name="$(basename "$url")"
-          curl -fsSL "$url" -o "$name"
-          mkdir -p qb64pe
-          case "$name" in
-            *.zip) unzip -q "$name" -d qb64pe ;;
-            *.tar.gz) tar -xzf "$name" -C qb64pe ;;
-          esac
+          API_URL="https://api.github.com/repos/QB64-Phoenix-Edition/QB64pe/releases/latest"
+          URL=$(curl -fsSL "$API_URL" \
+                | jq -r '.assets[] | select(.name | contains("src") and endswith(".tar.gz")) | .browser_download_url' \
+                | head -n1)
+          echo "Source URL: $URL"
+          echo "url=$URL" >> $GITHUB_OUTPUT
 
-          # Locate the qb64pe CLI in the extracted tree (prebuilt only)
-          qb="$(find qb64pe -type f -perm -111 -name 'qb64pe*' | head -n1 || true)"
-          if [ -z "${qb:-}" ]; then
-            echo "qb64pe CLI not found in archive; contents were:"
-            ls -R qb64pe
+      - name: Download source archive
+        if: steps.release.outputs.url != ''
+        run: |
+          curl -fsSL -o qb64pe-src.tar.gz "${{ steps.release.outputs.url }}"
+
+      - name: Extract source
+        run: |
+          mkdir -p qb64pe-src
+          tar -xzf qb64pe-src.tar.gz -C qb64pe-src --strip-components=1
+          ls -R qb64pe-src
+
+      # -------------------------------------------------
+      # 2. Compile using setup_lnx.sh
+      # -------------------------------------------------
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libgl1-mesa-dev libglu1-mesa-dev \
+                                  libasound2-dev libpulse-dev libx11-dev libxi-dev \
+                                  libxext-dev libxxf86vm-dev libxrandr-dev libxcursor-dev
+
+      - name: Run setup_lnx.sh (CLI-only)
+        working-directory: qb64pe-src
+        run: |
+          chmod +x ./setup_lnx.sh
+          ./setup_lnx.sh -cli   # builds only the CLI version (no GUI)
+
+      # -------------------------------------------------
+      # 3. Verify the binary exists
+      # -------------------------------------------------
+      - name: Check compiled binary
+        run: |
+          BINARY="qb64pe-src/qb64pe"
+          if [ ! -f "$BINARY" ]; then
+            echo "qb64pe binary not found!"
+            ls -la qb64pe-src/
             exit 1
           fi
-          chmod +x "$qb" || true
-          echo "QB64PE_BIN=$qb" >> "$GITHUB_ENV"
+          chmod +x "$BINARY"
+          file "$BINARY"
+          ./"$BINARY" -v || true   # just show version
 
-      - name: Detect ENTRY_BAS (*nix)
-        run: |
-          set -euo pipefail
-          if [ -n "${ENTRY_BAS:-}" ] && [ -f "$ENTRY_BAS" ]; then
-            found="$ENTRY_BAS"
-          elif [ -f "src/main.bas" ]; then
-            found="src/main.bas"
-          elif [ -f "main.bas" ]; then
-            found="main.bas"
-          else
-            found="$(find . -type f -name '*.bas' | head -n1 || true)"
-          fi
-          [ -n "${found:-}" ] || { echo "No .BAS file found. Set env ENTRY_BAS or add a file."; exit 1; }
-          echo "ENTRY_BAS=$found" >> "$GITHUB_ENV"
-
-      - name: Compile BAS (Linux x64, CLI only)
-        run: |
-          set -euo pipefail
-          [ -f "$ENTRY_BAS" ] || { echo "ENTRY_BAS not found: $ENTRY_BAS"; exit 1; }
-          [ -x "$QB64PE_BIN" ] || { echo "QB64PE_BIN not executable: $QB64PE_BIN"; exit 1; }
-          mkdir -p build
-          "$QB64PE_BIN" -x "$ENTRY_BAS" -o "build/${APP_NAME}-linux-x64"
-
-      - uses: actions/upload-artifact@v4
+      # -------------------------------------------------
+      # 4. Upload as artifact (available for 90 days)
+      # -------------------------------------------------
+      - name: Upload qb64pe binary as artifact
+        uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.APP_NAME }}-linux-x64
-          path: build/${{ env.APP_NAME }}-linux-x64
+          name: qb64pe-linux-x64
+          path: qb64pe-src/qb64pe
+          if-no-files-found: error
+
+      # -------------------------------------------------
+      # 5. Create a GitHub Release with the binary (permanent)
+      # -------------------------------------------------
+      - name: Create Release & upload binary
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="linux-$(date +%Y%m%d-%H%M%S)"
+          gh release create "$TAG" \
+            --title "QB64-PE Linux CLI ${{ github.sha }}" \
+            --notes "Automated build from source on $(date). Commit: ${{ github.sha }}" \
+            qb64pe-src/qb64pe
+
+          echo "Release created: $TAG"
+          echo "Download it from: https://github.com/${{ github.repository }}/releases/tag/$TAG"
