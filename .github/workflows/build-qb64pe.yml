@@ -5,62 +5,53 @@ on:
     branches: [ main ]
   pull_request:
 
+permissions:
+  contents: read
+
 env:
   APP_NAME: MyProgram
   ENTRY_BAS: src/main.bas
-  API_URL: https://api.github.com/repos/QB64-Phoenix-Edition/QB64pe/releases/latest
 
 jobs:
-  # -------------------- Ubuntu Linux x64 --------------------
   linux-x64:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download prebuilt QB64-PE (Linux x64)
+      - name: Download prebuilt QB64-PE (Linux)
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          release="$(curl -fsSL "$API_URL")"
-          url="$(printf '%s\n' "$release" \
-            | grep -Eo '"browser_download_url": *"[^"]+"' \
-            | sed -E 's/.*"([^"]+)"/\1/' \
-            | grep -E '(qb64pe_linux-(x64|amd64).*\.(tar\.gz|zip))$' \
-            | head -n1)"
-          [ -n "$url" ] || { echo "No Linux x64 asset found."; exit 1; }
-          name="$(basename "$url")"
-          curl -fsSL "$url" -o "$name"
-          mkdir -p qb64pe
-          case "$name" in
-            *.zip)    unzip -q "$name" -d qb64pe ;;
-            *.tar.gz) tar -xzf "$name" -C qb64pe ;;
-          esac
-          qb="$(find qb64pe -type f -name qb64pe -perm -111 | head -n1)"
-          [ -n "$qb" ] || { echo "qb64pe CLI not found"; exit 1; }
-          chmod +x "$qb" || true
-          echo "$qb" > qb64pe_path.txt
+          # Try current & legacy naming patterns
+          gh release download --repo QB64-Phoenix-Edition/QB64pe \
+            --pattern "qb64pe_lnx-*.tar.gz" -O qb64pe.tar.gz \
+          || gh release download --repo QB64-Phoenix-Edition/QB64pe \
+            --pattern "qb64pe_linux-*.tar.gz" -O qb64pe.tar.gz
 
-      - name: Detect ENTRY_BAS (*nix)
+          mkdir -p qb64pe
+          tar -xzf qb64pe.tar.gz -C qb64pe
+
+          # Find the qb64pe CLI inside the extracted folder
+          qb="$(find qb64pe -type f -name qb64pe -perm -111 | head -n1)"
+          [ -n "$qb" ] || { echo "qb64pe CLI not found in archive"; exit 1; }
+          chmod +x "$qb" || true
+          echo "QB64PE_BIN=$qb" >> "$GITHUB_ENV"
+
+      - name: Verify entry BASIC file
         run: |
           set -euo pipefail
-          if [ -n "${ENTRY_BAS:-}" ] && [ -f "$ENTRY_BAS" ]; then
-            found="$ENTRY_BAS"
-          elif [ -f "src/main.bas" ]; then
-            found="src/main.bas"
-          elif [ -f "main.bas" ]; then
-            found="main.bas"
-          else
-            found="$(find . -type f -name '*.bas' | head -n1 || true)"
+          if [ ! -f "$ENTRY_BAS" ]; then
+            echo "ENTRY_BAS does not exist: $ENTRY_BAS"
+            exit 1
           fi
-          [ -n "${found:-}" ] || { echo "No .BAS file found. Set env ENTRY_BAS or add a file."; exit 1; }
-          echo "ENTRY_BAS=$found" >> "$GITHUB_ENV"
+          echo "Compiling: $ENTRY_BAS"
 
       - name: Compile BAS (Linux x64, CLI only)
         run: |
           set -euo pipefail
-          qb="$(cat qb64pe_path.txt)"
-          [ -f "$ENTRY_BAS" ] || { echo "ENTRY_BAS not found: $ENTRY_BAS"; exit 1; }
           mkdir -p build
-          "$qb" -x "$ENTRY_BAS" -o "build/${APP_NAME}-linux-x64"
+          "$QB64PE_BIN" -x "$ENTRY_BAS" -o "build/${APP_NAME}-linux-x64"
 
       - uses: actions/upload-artifact@v4
         with:
