@@ -1,18 +1,25 @@
 name: Build (QB64-PE prebuilt, CLI-only)
+
 on:
   push:
     branches: [ main ]
   pull_request:
+
+permissions:
+  contents: read
+
 env:
   APP_NAME: MyProgram
   ENTRY_BAS: src/main.bas
   API_URL: https://api.github.com/repos/QB64-Phoenix-Edition/QB64pe/releases/latest
+
 jobs:
   # -------------------- Ubuntu Linux x64 --------------------
   linux-x64:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Download prebuilt QB64-PE (Linux x64)
         run: |
           set -euo pipefail
@@ -22,7 +29,7 @@ jobs:
             | sed -E 's/.*"([^"]+)"/\1/' \
             | grep -E '(qb64pe_lnx.*\.(tar\.gz|zip))$' \
             | head -n1)"
-          [ -n "$url" ] || { echo "No Linux x64 asset found."; exit 1; }
+          [ -n "$url" ] || { echo "No Linux prebuilt asset found."; exit 1; }
           name="$(basename "$url")"
           curl -fsSL "$url" -o "$name"
           mkdir -p qb64pe
@@ -30,15 +37,17 @@ jobs:
             *.zip) unzip -q "$name" -d qb64pe ;;
             *.tar.gz) tar -xzf "$name" -C qb64pe ;;
           esac
-      - name: Build QB64-PE (Linux x64)
-        run: |
-          set -euo pipefail
-          cd qb64pe
-          ./setup_lnx.sh
-          qb="$(pwd)/qb64pe"
-          [ -f "$qb" ] || { echo "qb64pe CLI not found after build"; exit 1; }
+
+          # Locate the qb64pe CLI in the extracted tree
+          qb="$(find qb64pe -type f -name qb64pe -perm -111 | head -n1 || true)"
+          if [ -z "${qb:-}" ]; then
+            echo "qb64pe CLI not found in archive; contents were:"
+            ls -R qb64pe
+            exit 1
+          fi
           chmod +x "$qb" || true
-          echo "$qb" > ../qb64pe_path.txt
+          echo "QB64PE_BIN=$qb" >> "$GITHUB_ENV"
+
       - name: Detect ENTRY_BAS (*nix)
         run: |
           set -euo pipefail
@@ -53,13 +62,15 @@ jobs:
           fi
           [ -n "${found:-}" ] || { echo "No .BAS file found. Set env ENTRY_BAS or add a file."; exit 1; }
           echo "ENTRY_BAS=$found" >> "$GITHUB_ENV"
+
       - name: Compile BAS (Linux x64, CLI only)
         run: |
           set -euo pipefail
-          qb="$(cat qb64pe_path.txt)"
           [ -f "$ENTRY_BAS" ] || { echo "ENTRY_BAS not found: $ENTRY_BAS"; exit 1; }
+          [ -x "$QB64PE_BIN" ] || { echo "QB64PE_BIN not executable: $QB64PE_BIN"; exit 1; }
           mkdir -p build
-          "$qb" -x "$ENTRY_BAS" -o "build/${APP_NAME}-linux-x64"
+          "$QB64PE_BIN" -x "$ENTRY_BAS" -o "build/${APP_NAME}-linux-x64"
+
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ env.APP_NAME }}-linux-x64
