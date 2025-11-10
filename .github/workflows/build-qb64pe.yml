@@ -30,7 +30,7 @@ jobs:
             *.zip) unzip -q "$name" -d qb64pe ;;
             *.tar.gz) tar -xzf "$name" -C qb64pe ;;
           esac
-          qb="$(find qb64pe -type f -name qb64pe -perm -111 | head -n1)"
+          qb="$(find qb64pe -type f -name qb64pe | head -n1)"
           [ -n "$qb" ] || { echo "qb64pe CLI not found"; exit 1; }
           chmod +x "$qb" || true
           echo "$qb" > qb64pe_path.txt
