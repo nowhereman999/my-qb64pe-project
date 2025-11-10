@@ -14,7 +14,6 @@ env:
   API_URL: https://api.github.com/repos/QB64-Phoenix-Edition/QB64pe/releases/latest
 
 jobs:
-  # -------------------- Ubuntu Linux x64 --------------------
   linux-x64:
     runs-on: ubuntu-latest
     steps:
@@ -27,7 +26,8 @@ jobs:
           url="$(printf '%s\n' "$release" \
             | grep -Eo '"browser_download_url": *"[^"]+"' \
             | sed -E 's/.*"([^"]+)"/\1/' \
-            | grep -E '(qb64pe_lnx.*\.(tar\.gz|zip))$' \
+            | grep -E '(qb64pe_(lnx|linux).*\.(tar\.gz|zip))$' \
+            | grep -Ev '(src|source)' \
             | head -n1)"
           [ -n "$url" ] || { echo "No Linux prebuilt asset found."; exit 1; }
           name="$(basename "$url")"
@@ -38,8 +38,8 @@ jobs:
             *.tar.gz) tar -xzf "$name" -C qb64pe ;;
           esac
 
-          # Locate the qb64pe CLI in the extracted tree
-          qb="$(find qb64pe -type f -name qb64pe -perm -111 | head -n1 || true)"
+          # Locate the qb64pe CLI in the extracted tree (prebuilt only)
+          qb="$(find qb64pe -type f -perm -111 -name 'qb64pe*' | head -n1 || true)"
           if [ -z "${qb:-}" ]; then
             echo "qb64pe CLI not found in archive; contents were:"
             ls -R qb64pe
