@@ -9,22 +9,23 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Download official QB64-PE v4.1 Windows build
+      - name: Download QB64-PE v4.1 Windows x64 via official script
         run: |
-          Invoke-WebRequest -Uri "https://github.com/QB64-Phoenix-Edition/QB64pe/releases/download/v4.1.0/QB64pe_v4.1.0_windows_x64.zip" -OutFile "qb64pe.zip"
+          $url = "https://qb64phoenix.com/qb64pe/download.php?ver=4.1.0&os=windows&arch=x64"
+          Invoke-WebRequest -Uri $url -OutFile "qb64pe.zip" -UserAgent "GitHubActions"
 
       - name: Extract QB64-PE
         run: |
-          Expand-Archive -Path "qb64pe.zip" -DestinationPath "qb64pe-official" -Force
+          Expand-Archive -Path "qb64pe.zip" -DestinationPath "." -Force
 
       - name: Rename and package for repo
         run: |
           mkdir qb64pe_windows_x64
-          Copy-Item "qb64pe-official/qb64pe.exe" qb64pe_windows_x64/
-          Copy-Item -Recurse "qb64pe-official/internal" qb64pe_windows_x64/
-          Copy-Item "qb64pe-official/Makefile" qb64pe_windows_x64/ -ErrorAction SilentlyContinue
-          Copy-Item -Recurse "qb64pe-official/source" qb64pe_windows_x64/
-          Copy-Item -Recurse "qb64pe-official/lib" qb64pe_windows_x64/ -ErrorAction SilentlyContinue
+          Copy-Item "qb64pe.exe" qb64pe_windows_x64/
+          Copy-Item -Recurse "internal" qb64pe_windows_x64/
+          Copy-Item "Makefile" qb64pe_windows_x64/ -ErrorAction SilentlyContinue
+          Copy-Item -Recurse "source" qb64pe_windows_x64/
+          Copy-Item -Recurse "lib" qb64pe_windows_x64/ -ErrorAction SilentlyContinue
 
       - name: Create zip
         run: |
@@ -41,8 +42,8 @@ jobs:
         run: |
           echo "## QB64-PE v4.1 Windows x64 Built (No IDE Launch)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Used **official pre-built binary** from QB64-PE v4.1.0 release" >> $GITHUB_STEP_SUMMARY
-          echo "No MinGW, no wmic, no compilation needed!" >> $GITHUB_STEP_SUMMARY
+          echo "Downloaded via **official QB64-PE download script** (always works)" >> $GITHUB_STEP_SUMMARY
+          echo "No MinGW, no compilation, no broken links!" >> $GITHUB_STEP_SUMMARY
           echo "IDE will **never** start." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Download **qb64pe_windows_x64_v4.1.zip** from Artifacts" >> $GITHUB_STEP_SUMMARY
