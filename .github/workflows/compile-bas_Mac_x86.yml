@@ -1,25 +1,32 @@
 name: Compile QB64-PE (macOS x86)
+
 on:
   push:
     paths:
-      - '**/*.bas'
-      - '**/*.BAS'
+      - 'BASIC-To-6809_Source_Code/**/*.bas'
+      - 'BASIC-To-6809_Source_Code/**/*.BAS'
+      - 'BASIC-To-6809_Source_Code/IDE/SDECB.bas'
+      - 'BASIC-To-6809_Source_Code/IDE/SDECB.BAS'
   pull_request:
     paths:
-      - '**/*.bas'
-      - '**/*.BAS'
+      - 'BASIC-To-6809_Source_Code/**/*.bas'
+      - 'BASIC-To-6809_Source_Code/**/*.BAS'
+      - 'BASIC-To-6809_Source_Code/IDE/SDECB.bas'
+      - 'BASIC-To-6809_Source_Code/IDE/SDECB.BAS'
   workflow_dispatch:
     inputs:
       bas_paths:
         description: 'Comma-separated .bas file paths (relative to repo root)'
         required: false
         type: string
+
 jobs:
   build:
     runs-on: macos-13 # Intel x86_64 runner
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
       - name: Verify QB64-PE x86 setup
         run: |
           QB64PE_DIR="$GITHUB_WORKSPACE/tools/qb64pe_mac_x86"
@@ -28,77 +35,101 @@ jobs:
           [ -f "./qb64pe" ] || { echo "qb64pe missing!"; exit 1; }
           [ -d "./internal" ] || { echo "internal/ missing!"; exit 1; }
           [ -f "./Makefile" ] || { echo "Makefile missing!"; exit 1; }
+
       - name: Make qb64pe executable
         run: |
           QB64PE_DIR="$GITHUB_WORKSPACE/tools/qb64pe_mac_x86"
           chmod +x "$QB64PE_DIR/qb64pe"
+
       - name: Install Xcode Command Line Tools
         run: xcode-select --install || true
-      - name: Compile changed or specified .bas files
+
+      - name: Compile selected .bas files
         id: compile
         run: |
           QB64PE_DIR="$GITHUB_WORKSPACE/tools/qb64pe_mac_x86"
           ARTIFACT_DIR="$GITHUB_WORKSPACE/artifacts"
           mkdir -p "$ARTIFACT_DIR"
-          # Get list of .bas paths (manual input or all matching files)
+
+          # Use manual input if provided, otherwise auto-detect specific files
           if [ -n "${{ inputs.bas_paths }}" ]; then
             IFS=',' read -r -a FILES <<< "${{ inputs.bas_paths }}"
           else
-            FILES=($(find "$GITHUB_WORKSPACE" -type f \( -iname "*.bas" -o -iname "*.BAS" \) \
-              ! -path "$GITHUB_WORKSPACE/BASIC-To-6809_Source_Code/IDE/*/*" \
-              ! -path "$GITHUB_WORKSPACE/tools/qb64pe_mac_x86/*" \
-              ! -path "$GITHUB_WORKSPACE/tools/qb64pe_mac_arm/*" | sort))
-            for i in "${!FILES[@]}"; do
-              FILES[$i]="${FILES[$i]#$GITHUB_WORKSPACE/}"
-            done
+            # All .bas in main folder + only SDECB.bas from IDE/
+            FILES=($(find "$GITHUB_WORKSPACE/BASIC-To-6809_Source_Code" -maxdepth 1 -type f \( -iname "*.bas" -o -iname "*.BAS" \) | sed "s|$GITHUB_WORKSPACE/||"))
+            FILES+=("BASIC-To-6809_Source_Code/IDE/SDECB.bas")
+            # Add uppercase version just in case
+            [[ -f "$GITHUB_WORKSPACE/BASIC-To-6809_Source_Code/IDE/SDECB.BAS" ]] && FILES+=("BASIC-To-6809_Source_Code/IDE/SDECB.BAS")
           fi
+
+          # Remove duplicates and non-existent files
+          UNIQUE_FILES=()
+          for f in "${FILES[@]}"; do
+            [[ -f "$GITHUB_WORKSPACE/$f" ]] && UNIQUE_FILES+=("$f")
+          done
+          FILES=("${UNIQUE_FILES[@]}")
+
           if [ ${#FILES[@]} -eq 0 ]; then
-            echo "No .bas files found or specified—skipping compilation."
+            echo "No .bas files to compile."
             echo "executables=" >> "$GITHUB_OUTPUT"
             echo "compiled_count=0" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          echo "Found ${#FILES[@]} .bas file(s):"
+
+          echo "Compiling ${#FILES[@]} file(s):"
           printf ' - %s\n' "${FILES[@]}"
+
           EXECUTABLES=""
           COUNT=0
           for file in "${FILES[@]}"; do
             file=$(echo "$file" | xargs)
             [[ ! "$file" =~ \.[bB][aA][sS]$ ]] && continue
+
             rel_dir=$(dirname "$file")
             filename=$(basename "$file")
             base="${filename%.*}"
             full_dir="$GITHUB_WORKSPACE/$rel_dir"
-            cd "$full_dir"
+
             echo "Compiling (in $rel_dir): $filename → $base"
+            cd "$full_dir"
+
             if ! "$QB64PE_DIR/qb64pe" -x "$filename" -o "$base"; then
-              if [ -f "$GITHUB_WORKSPACE/tools/qb64pe_mac_x86/internal/temp/compilelog.txt" ]; then
-                echo "Compilation failed. Contents of ./internal/temp/compilelog.txt:"
-                cat $GITHUB_WORKSPACE/tools/qb64pe_mac_x86/internal/temp/compilelog.txt
+              LOG_PATH="$QB64PE_DIR/internal/temp/compilelog.txt"
+              if [ -f "$LOG_PATH" ]; then
+                echo "=== COMPILATION ERROR ==="
+                echo "Contents of $LOG_PATH:"
+                cat "$LOG_PATH"
+                echo "========================="
               else
-                echo "Compilation failed, but compilelog.txt not found."
+                echo "Compilation failed, but $LOG_PATH not found."
               fi
               exit 1
             fi
+
             cp "$base" "$ARTIFACT_DIR/$base"
-            rm "$base"
+            rm -f "$base"
             EXECUTABLES="$EXECUTABLES $base"
             COUNT=$((COUNT + 1))
           done
+
           EXECUTABLES="${EXECUTABLES# }"
           echo "executables=$EXECUTABLES" >> "$GITHUB_OUTPUT"
           echo "compiled_count=$COUNT" >> "$GITHUB_OUTPUT"
+
       - name: Remove quarantine attribute
+        if: steps.compile.outputs.compiled_count > 0
         run: |
           for exe in ${{ steps.compile.outputs.executables }}; do
-            xattr -dr com.apple.quarantine "$exe" 2>/dev/null || true
+            xattr -dr com.apple.quarantine "$GITHUB_WORKSPACE/artifacts/$exe" 2>/dev/null || true
           done
+
       - name: Create zip archive
         if: steps.compile.outputs.compiled_count > 0
         run: |
           cd "$GITHUB_WORKSPACE/artifacts"
           zip qb64pe_mac_x86_executables.zip ${{ steps.compile.outputs.executables }}
           echo "Zipped ${{ steps.compile.outputs.compiled_count }} executable(s)"
+
       - name: Upload artifact
         if: steps.compile.outputs.compiled_count > 0
         uses: actions/upload-artifact@v4
@@ -106,6 +137,7 @@ jobs:
           name: qb64pe-mac-x86-executables
           path: ${{ github.workspace }}/artifacts/qb64pe_mac_x86_executables.zip
           retention-days: 30
+
       - name: Job summary
         if: success()
         run: |
