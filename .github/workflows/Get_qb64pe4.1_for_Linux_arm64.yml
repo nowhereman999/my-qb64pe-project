@@ -4,7 +4,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest-arm64  # This runs on real ARM64 hardware (Graviton)
+    runs-on: ubuntu-24.04-arm  # This runs on real ARM64 hardware
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
