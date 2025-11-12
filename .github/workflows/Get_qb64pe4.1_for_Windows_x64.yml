@@ -31,8 +31,8 @@ jobs:
         shell: bash
         run: |
           cd qb64pe-source
-          chmod +x ./setup_win.bat
-          ./setup_win.bat nolaunch
+          chmod +x ./setup_win.cmd
+          ./setup_win.cmd nolaunch
 
       - name: Verify binary was built
         run: |
@@ -69,4 +69,3 @@ jobs:
           echo "Download **qb64pe_windows_x64_v4.1.zip** from Artifacts" >> $GITHUB_STEP_SUMMARY
           echo "Extract to: **tools/qb64pe_Windows_x64/**" >> $GITHUB_STEP_SUMMARY
           echo "Then commit and push." >> $GITHUB_STEP_SUMMARY
-          
