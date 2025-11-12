@@ -3,14 +3,14 @@ name: Compile QB64-PE (macOS x86)
 on:
   push:
     paths:
-      - 'BASIC-To-6809_Source_Code/**/*.bas'
-      - 'BASIC-To-6809_Source_Code/**/*.BAS'
+      - 'BASIC-To-6809_Source_Code/*.bas'
+      - 'BASIC-To-6809_Source_Code/*.BAS'
       - 'BASIC-To-6809_Source_Code/IDE/SDECB.bas'
       - 'BASIC-To-6809_Source_Code/IDE/SDECB.BAS'
   pull_request:
     paths:
-      - 'BASIC-To-6809_Source_Code/**/*.bas'
-      - 'BASIC-To-6809_Source_Code/**/*.BAS'
+      - 'BASIC-To-6809_Source_Code/*.bas'
+      - 'BASIC-To-6809_Source_Code/*.BAS'
       - 'BASIC-To-6809_Source_Code/IDE/SDECB.bas'
       - 'BASIC-To-6809_Source_Code/IDE/SDECB.BAS'
   workflow_dispatch:
@@ -31,7 +31,6 @@ jobs:
         run: |
           QB64PE_DIR="$GITHUB_WORKSPACE/tools/qb64pe_mac_x86"
           cd "$QB64PE_DIR"
-          ls -R
           [ -f "./qb64pe" ] || { echo "qb64pe missing!"; exit 1; }
           [ -d "./internal" ] || { echo "internal/ missing!"; exit 1; }
           [ -f "./Makefile" ] || { echo "Makefile missing!"; exit 1; }
@@ -51,22 +50,27 @@ jobs:
           ARTIFACT_DIR="$GITHUB_WORKSPACE/artifacts"
           mkdir -p "$ARTIFACT_DIR"
 
-          # Use manual input if provided, otherwise auto-detect specific files
           if [ -n "${{ inputs.bas_paths }}" ]; then
             IFS=',' read -r -a FILES <<< "${{ inputs.bas_paths }}"
           else
-            # All .bas in main folder + only SDECB.bas from IDE/
-            FILES=($(find "$GITHUB_WORKSPACE/BASIC-To-6809_Source_Code" -maxdepth 1 -type f \( -iname "*.bas" -o -iname "*.BAS" \) | sed "s|$GITHUB_WORKSPACE/||"))
-            FILES+=("BASIC-To-6809_Source_Code/IDE/SDECB.bas")
-            # Add uppercase version just in case
-            [[ -f "$GITHUB_WORKSPACE/BASIC-To-6809_Source_Code/IDE/SDECB.BAS" ]] && FILES+=("BASIC-To-6809_Source_Code/IDE/SDECB.BAS")
+            # 1. All .bas/.BAS in the root of BASIC-To-6809_Source_Code/
+            mapfile -t ROOT_FILES < <(find "$GITHUB_WORKSPACE/BASIC-To-6809_Source_Code" -maxdepth 1 -type f \( -iname "*.bas" -o -iname "*.BAS" \) | sed "s|$GITHUB_WORKSPACE/||")
+
+            # 2. Add SDECB.bas (case-insensitive) from IDE/ — only if exists
+            SDECB_PATH=""
+            if [ -f "$GITHUB_WORKSPACE/BASIC-To-6809_Source_Code/IDE/SDECB.bas" ]; then
+              SDECB_PATH="BASIC-To-6809_Source_Code/IDE/SDECB.bas"
+            elif [ -f "$GITHUB_WORKSPACE/BASIC-To-6809_Source_Code/IDE/SDECB.BAS" ]; then
+              SDECB_PATH="BASIC-To-6809_Source_Code/IDE/SDECB.BAS"
+            fi
+
+            # Combine both lists
+            FILES=("${ROOT_FILES[@]}")
+            [[ -n "$SDECB_PATH" ]] && FILES+=("$SDECB_PATH")
           fi
 
-          # Remove duplicates and non-existent files
-          UNIQUE_FILES=()
-          for f in "${FILES[@]}"; do
-            [[ -f "$GITHUB_WORKSPACE/$f" ]] && UNIQUE_FILES+=("$f")
-          done
+          # Remove duplicates just in case
+          UNIQUE_FILES=($(printf '%s\n' "${FILES[@]}" | sort -u))
           FILES=("${UNIQUE_FILES[@]}")
 
           if [ ${#FILES[@]} -eq 0 ]; then
@@ -95,14 +99,14 @@ jobs:
 
             if ! "$QB64PE_DIR/qb64pe" -x "$filename" -o "$base"; then
               LOG_PATH="$QB64PE_DIR/internal/temp/compilelog.txt"
+              echo "=== COMPILATION ERROR ==="
               if [ -f "$LOG_PATH" ]; then
-                echo "=== COMPILATION ERROR ==="
                 echo "Contents of $LOG_PATH:"
                 cat "$LOG_PATH"
-                echo "========================="
               else
-                echo "Compilation failed, but $LOG_PATH not found."
+                echo "compilelog.txt not found."
               fi
+              echo "========================"
               exit 1
             fi
 
