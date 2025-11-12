@@ -21,23 +21,22 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest  # Now Ubuntu 24.04 – works perfectly with the fixes below
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install ALL QB64-PE runtime dependencies
+      - name: Install QB64-PE runtime dependencies (Ubuntu 24.04 compatible)
         run: |
           sudo apt-get update
           sudo apt-get install -y \
             libglu1-mesa \
-            libgl1-mesa-glx \
+            libgl1 \
             libx11-6 \
             libxcb1 \
             libpng16-16 \
             libcurl4 \
-            libasound2 \
-            libpthread-stubs0-dev \
+            libasound2t64 \
             libxi6 \
             libxrender1 \
             libxext6 \
@@ -45,7 +44,8 @@ jobs:
             libxrandr2 \
             libxinerama1 \
             libxcursor1 \
-            libxss1
+            libxss1 \
+            libpthread-stubs0-dev
 
       - name: Verify QB64-PE Linux x86_64 setup
         run: |
@@ -69,7 +69,6 @@ jobs:
           ARTIFACT_DIR="$GITHUB_WORKSPACE/artifacts"
           mkdir -p "$ARTIFACT_DIR"
 
-          # === File discovery logic (unchanged) ===
           if [ -n "${{ inputs.bas_paths }}" ]; then
             IFS=',' read -r -a FILES <<< "${{ inputs.bas_paths }}"
           else
