@@ -1,5 +1,4 @@
 name: Compile QB64-PE (Windows x64)
-
 on:
   push:
     paths:
@@ -19,7 +18,6 @@ on:
         description: 'Comma-separated .bas file paths'
         required: false
         type: string
-
 jobs:
   build:
     runs-on: windows-2022
@@ -29,70 +27,57 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
       - name: Install MinGW
         shell: cmd
         run: choco install mingw -y --no-progress
-
       - name: Add MinGW to PATH
         shell: cmd
         run: |
           for %%p in (
-            "C:\tools\mingw64\bin"
-            "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin"
-            "C:\mingw64\bin"
-          ) do if exist %%p (
-            set "PATH=%%p;%PATH%"
-            echo %%p>> "%GITHUB_PATH%"
-          )
-          gcc --version
-
+              "C:\tools\mingw64\bin"
+              "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin"
+              "C:\mingw64\bin"
+            ) do if exist %%p (
+              set "PATH=%%p;%PATH%"
+              echo %%p>> "%GITHUB_PATH%"
+            )
+            gcc --version
       - name: Verify QB64-PE
         shell: cmd
         run: |
           if not exist "%QB64PE%" (
-            echo qb64pe.exe missing!
-            exit 1
-          )
-          echo QB64-PE found.
-
+              echo qb64pe.exe missing!
+              exit 1
+            )
+            echo QB64-PE found.
       - name: Override internal compiler (COPY EXES - FIXED)
         shell: cmd
         run: |
           set "INTERNAL=%GITHUB_WORKSPACE%\tools\qb64pe_Windows_x64\internal\c\c_compiler"
           rmdir /s /q "%INTERNAL%" 2>nul
           mkdir "%INTERNAL%\bin" >nul
-
           for /f "delims=" %%G in ('where gcc.exe') do set "REAL_GCC=%%G" & goto :next1
           :next1
           if not defined REAL_GCC (echo gcc not found & exit 1)
-
           for /f "delims=" %%X in ('where g++.exe') do set "REAL_GPP=%%X" & goto :next2
           :next2
-
           set "REAL_MAKE="
-          for /f "delims=" %%M in ('where mingw32-make.exe 2>nul') do set "REAL_MAKE=%%M" & goto :next3
+          for /f "delims=" %%M in ('where mingw32-make.exe 2^>nul') do set "REAL_MAKE=%%M" & goto :next3
           :next3
-          if not defined REAL_MAKE for /f "delims=" %%M in ('where make.exe 2>nul') do set "REAL_MAKE=%%M" & goto :next4
+          if not defined REAL_MAKE for /f "delims=" %%M in ('where make.exe 2^>nul') do set "REAL_MAKE=%%M" & goto :next4
           :next4
           if not defined REAL_MAKE (echo make not found & exit 1)
-
           set "REAL_BINDIR=%REAL_GCC:~0,-9%"
-
           copy "%REAL_GCC%" "%INTERNAL%\bin\gcc.exe" /y >nul
           copy "%REAL_GPP%" "%INTERNAL%\bin\g++.exe" /y >nul
           copy "%REAL_MAKE%" "%INTERNAL%\bin\mingw32-make.exe" /y >nul
-
           for %%D in (libgcc_s_seh-1.dll libstdc++-6.dll libwinpthread-1.dll) do (
             copy "%REAL_BINDIR%\%%D" "%INTERNAL%\bin\%%D" /y >nul 2>nul
           )
-
           echo Compiler override complete
-
       - name: Create artifacts folder
         shell: cmd
         run: mkdir "%ARTIFACTS%" >nul
-
       - name: Compile .bas files (NO HANG)
         id: compile
         shell: cmd
@@ -102,34 +87,26 @@ jobs:
           set "COUNT=0"
           set "SEEN=%TEMP%\qb64pe_seen.txt"
           >"%SEEN%" rem
-
           if defined INPUT_BAS_PATHS (
             for %%F in (%INPUT_BAS_PATHS%) do call :compile_one "%%F"
             goto :done
           )
-
           for /r "%ROOT%" %%F in (*.bas *.BAS) do call :compile_one "%%F"
-
           :done
           if exist "%SEEN%" del "%SEEN%"
           echo executables=%EXE_LIST:~1%>> "%GITHUB_OUTPUT%"
           echo compiled_count=%COUNT%>> "%GITHUB_OUTPUT%"
           exit /b
-
           :compile_one
           set "FULL=%~f1"
           findstr /i "^%FULL%$"< "%SEEN%" >nul && exit /b
           echo %FULL%>> "%SEEN%"
-
           set "DIR=%~dp1"
           set "FILE=%~nx1"
           set "BASE=%~n1"
-
           pushd "%DIR%"
           echo Compiling %FILE% -^> %BASE%.exe
-
           call "%QB64PE%" -x "%FILE%" -o "%BASE%.exe" < nul
-
           if errorlevel 1 (
             echo === COMPILATION FAILED: %FILE% ===
             if exist "%GITHUB_WORKSPACE%\tools\qb64pe_Windows_x64\internal\temp\compilelog.txt" (
@@ -138,19 +115,16 @@ jobs:
             popd
             exit /b 1
           )
-
           copy "%BASE%.exe" "%ARTIFACTS%\%BASE%.exe" /y >nul
           del "%BASE%.exe" 2>nul
           set "EXE_LIST=%EXE_LIST% %BASE%.exe"
           set /a COUNT+=1
           popd
           exit /b
-
       - name: Create zip
         if: steps.compile.outputs.compiled_count > 0
         shell: cmd
         run: powershell -Command "Compress-Archive -Path '%ARTIFACTS%\*.exe' -DestinationPath qb64pe_Windows_x64_executables.zip -Force"
-
       - name: Upload artifact
         if: steps.compile.outputs.compiled_count > 0
         uses: actions/upload-artifact@v4
@@ -158,7 +132,6 @@ jobs:
           name: qb64pe-windows-x64-executables
           path: qb64pe_Windows_x64_executables.zip
           retention-days: 30
-
       - name: Summary
         if: success() && steps.compile.outputs.compiled_count > 0
         shell: cmd
