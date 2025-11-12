@@ -1,0 +1,6 @@
+if(oldstr3675){
+if(oldstr3675->fixed)qbs_set(oldstr3675,_FUNC_VERIFYNUMBER_STRING_TEXT);
+qbs_free(_FUNC_VERIFYNUMBER_STRING_TEXT);
+}
+qbs_free(_FUNC_VERIFYNUMBER_STRING_T);
+qbs_free(_FUNC_VERIFYNUMBER_STRING_T1);

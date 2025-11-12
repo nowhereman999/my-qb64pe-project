@@ -1,0 +1,6 @@
+if(oldstr3851){
+if(oldstr3851->fixed)qbs_set(oldstr3851,_FUNC_ESCAPESTRING_STRING_S);
+qbs_free(_FUNC_ESCAPESTRING_STRING_S);
+}
+qbs_free(_FUNC_ESCAPESTRING_STRING_ELE);
+qbs_free(_FUNC_ESCAPESTRING_STRING_O);

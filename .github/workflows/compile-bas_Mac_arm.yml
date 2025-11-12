@@ -1,0 +1,130 @@
+name: Compile QB64-PE (macOS ARM64)
+
+on:
+  push:
+    paths:
+      - '**/*.bas'
+      - '**/*.BAS'
+  pull_request:
+    paths:
+      - '**/*.bas'
+      - '**/*.BAS'
+  workflow_dispatch:
+    inputs:
+      bas_paths:
+        description: 'Comma-separated .bas file paths (relative to repo root, e.g., src/project/main.bas)'
+        required: false
+        type: string
+
+jobs:
+  build:
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify QB64-PE setup
+        run: |
+          QB64PE_DIR="$GITHUB_WORKSPACE/tools/qb64pe_mac_arm"
+          cd "$QB64PE_DIR"
+          ls -R
+          [ -f "./qb64pe" ]     || { echo "qb64pe missing!"; exit 1; }
+          [ -d "./internal" ]   || { echo "internal/ missing!"; exit 1; }
+          [ -f "./Makefile" ]   || { echo "Makefile missing!"; exit 1; }
+
+      - name: Make qb64pe executable
+        run: |
+          QB64PE_DIR="$GITHUB_WORKSPACE/tools/qb64pe_mac_arm"
+          chmod +x "$QB64PE_DIR/qb64pe"
+
+      - name: Install Xcode Command Line Tools
+        run: xcode-select --install || true
+
+      - name: Compile changed or specified .bas files
+        id: compile
+        run: |
+          QB64PE_DIR="$GITHUB_WORKSPACE/tools/qb64pe_mac_arm"
+          ARTIFACT_DIR="$GITHUB_WORKSPACE/artifacts"
+          mkdir -p "$ARTIFACT_DIR"
+
+          # Get list of .bas paths (manual input or all matching files)
+          if [ -n "${{ inputs.bas_paths }}" ]; then
+            IFS=',' read -r -a FILES <<< "${{ inputs.bas_paths }}"
+          else
+            FILES=($(find "$GITHUB_WORKSPACE" -type f \( -iname "*.bas" -o -iname "*.BAS" \) ! -path "$GITHUB_WORKSPACE/BASIC-To-6809_Source_Code/IDE/*/*" | sort))
+            # Convert absolute paths to relative
+            for i in "${!FILES[@]}"; do
+              FILES[$i]="${FILES[$i]#$GITHUB_WORKSPACE/}"
+            done
+          fi
+
+          if [ ${#FILES[@]} -eq 0 ]; then
+            echo "No .bas files found or specified—skipping compilation."
+            echo "executables=" >> "$GITHUB_OUTPUT"
+            echo "compiled_count=0" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "Found ${#FILES[@]} .bas file(s):"
+          printf ' - %s\n' "${FILES[@]}"
+
+          EXECUTABLES=""
+          COUNT=0
+
+          for file in "${FILES[@]}"; do
+            file=$(echo "$file" | xargs)  # Trim whitespace
+            if [[ ! "$file" =~ \.[bB][aA][sS]$ ]]; then continue; fi
+
+            rel_dir=$(dirname "$file")
+            filename=$(basename "$file")
+            base="${filename%.*}"
+
+            full_dir="$GITHUB_WORKSPACE/$rel_dir"
+            cd "$full_dir"
+            echo "Compiling (in $rel_dir): $filename → $base"
+            "$QB64PE_DIR/qb64pe" -x "$filename" -o "$base" || exit 1
+            cp "$base" "$ARTIFACT_DIR/$base"
+            rm "$base"  # Clean up original dir (optional—comment out if you want to keep)
+
+            EXECUTABLES="$EXECUTABLES $base"
+            COUNT=$((COUNT + 1))
+          done
+
+          EXECUTABLES="${EXECUTABLES# }"  # Trim leading space
+          echo "executables=$EXECUTABLES" >> "$GITHUB_OUTPUT"
+          echo "compiled_count=$COUNT" >> "$GITHUB_OUTPUT"
+
+      - name: Remove quarantine attribute (so downloaded executables run without warning)
+        run: |
+          for exe in ${{ steps.compile.outputs.executables }}; do
+            xattr -dr com.apple.quarantine "$exe" 2>/dev/null || true
+          done
+
+      - name: Create zip archive
+        if: steps.compile.outputs.compiled_count > 0
+        run: |
+          ARTIFACT_DIR="$GITHUB_WORKSPACE/artifacts"
+          cd "$ARTIFACT_DIR"
+          zip qb64pe_mac_arm_executables.zip ${{ steps.compile.outputs.executables }}
+          echo "Zipped ${{ steps.compile.outputs.compiled_count }} executable(s)"
+
+      - name: Upload artifact
+        if: steps.compile.outputs.compiled_count > 0
+        uses: actions/upload-artifact@v4
+        with:
+          name: qb64pe-mac-arm-executables
+          path: ${{ github.workspace }}/artifacts/qb64pe_mac_arm_executables.zip
+          retention-days: 30
+
+      - name: Job summary
+        if: success()
+        run: |
+          echo "## QB64-PE macOS ARM64 Build Complete" >> $GITHUB_STEP_SUMMARY
+          echo "Compiled ${{ steps.compile.outputs.compiled_count }} program(s):" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          for exe in ${{ steps.compile.outputs.executables }}; do
+            echo "- \`$exe\`" >> $GITHUB_STEP_SUMMARY
+          done
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Download the zip from **Artifacts** below" >> $GITHUB_STEP_SUMMARY

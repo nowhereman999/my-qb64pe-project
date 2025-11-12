@@ -1,0 +1,88 @@
+# .github/workflows/compile-bas.yml
+name: Compile BAS to Linux executable
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code (including tools/)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install dependencies + xvfb + timeout
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y \
+            libglu1-mesa libgl1 libasound2t64 libpulse0 \
+            libx11-6 libxi6 libxext6 libxxf86vm1 libxrandr2 \
+            libxcursor1 libxinerama1 libopenal1 libsdl2-2.0-0 \
+            xvfb coreutils
+
+      - name: Prepare QB64-PE compiler
+        run: |
+          cp tools/qb64pe_linux_x86/qb64pe ./qb64pe
+          chmod +x ./qb64pe
+          echo "QB64-PE version:"
+          ./qb64pe -v || true
+
+      - name: Detect entry .BAS
+        id: bas
+        run: |
+          if [ -f "src/main.bas" ]; then
+            echo "file=src/main.bas" >> $GITHUB_OUTPUT
+            echo "Compiling: src/main.bas"
+          elif [ -f "main.bas" ]; then
+            echo "file=main.bas" >> $GITHUB_OUTPUT
+            echo "Compiling: main.bas"
+          else
+            BAS=$(find . -type d -name ".github" -prune -o -type f -name "*.bas" -print -quit)
+            if [ -n "$BAS" ]; then
+              echo "file=$BAS" >> $GITHUB_OUTPUT
+              echo "Compiling: $BAS"
+            else
+              echo "No .bas file found!"
+              exit 1
+            fi
+          fi
+
+      - name: Compile & rename executable (HEADLESS WITH DOUBLE ENTER)
+        run: |
+          # Sends F11 + Enter + Enter to auto-compile and close dialog
+          echo -e "\x1B\n\n" | timeout --kill-after=10 30 xvfb-run -a ./qb64pe -x "${{ steps.bas.outputs.file }}" || true
+          
+          BASENAME=$(basename "${{ steps.bas.outputs.file }}" .bas)
+          OUTPUT=$(find . -type f -executable -name "$BASENAME" -print -quit)
+          if [ -z "$OUTPUT" ]; then
+            echo "Executable not found!"
+            ls -la src/ || true
+            exit 1
+          fi
+          echo "Found executable: $OUTPUT"
+          mv "$OUTPUT" MyProgram-linux-x64
+          chmod +x MyProgram-linux-x64
+          echo "Renamed to MyProgram-linux-x64"
+
+      - name: Upload MyProgram-linux-x64
+        uses: actions/upload-artifact@v4
+        with:
+          name: MyProgram-linux-x64
+          path: MyProgram-linux-x64
+
+      - name: Create Release with executable
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="build-$(date +%Y%m%d-%H%M%S)"
+          gh release create "$TAG" \
+            --title "MyProgram Linux Build ${{ github.sha }}" \
+            --notes "Compiled **${{ steps.bas.outputs.file }}** on $(date '+%Y-%m-%d %H:%M UTC')" \
+            MyProgram-linux-x64

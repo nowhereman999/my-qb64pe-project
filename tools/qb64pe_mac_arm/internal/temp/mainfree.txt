@@ -1,0 +1,94 @@
+qbs_free(__STRING_VWATCH_SUBNAME);
+qbs_free(__STRING_VWATCH_INTERNALSUBNAME);
+qbs_free(__STRING_VWATCH_CALLSTACK);
+if (__ARRAY_BYTE_VWATCH_BREAKPOINTS[2]&1){
+if (__ARRAY_BYTE_VWATCH_BREAKPOINTS[2]&4){
+cmem_dynamic_free((uint8*)(__ARRAY_BYTE_VWATCH_BREAKPOINTS[0]));
+}else{
+free((void*)(__ARRAY_BYTE_VWATCH_BREAKPOINTS[0]));
+}
+}
+free_mem_lock( (mem_lock*)((ptrszint*)__ARRAY_BYTE_VWATCH_BREAKPOINTS)[8] );
+if (__ARRAY_BYTE_VWATCH_SKIPLINES[2]&1){
+if (__ARRAY_BYTE_VWATCH_SKIPLINES[2]&4){
+cmem_dynamic_free((uint8*)(__ARRAY_BYTE_VWATCH_SKIPLINES[0]));
+}else{
+free((void*)(__ARRAY_BYTE_VWATCH_SKIPLINES[0]));
+}
+}
+free_mem_lock( (mem_lock*)((ptrszint*)__ARRAY_BYTE_VWATCH_SKIPLINES)[8] );
+if (__ARRAY_STRING_VWATCH_STACK[2]&1){
+tmp_long=__ARRAY_STRING_VWATCH_STACK[5];
+while(tmp_long--) qbs_free((qbs*)((uint64*)(__ARRAY_STRING_VWATCH_STACK[0]))[tmp_long]);
+free((void*)(__ARRAY_STRING_VWATCH_STACK[0]));
+}
+free_mem_lock( (mem_lock*)((ptrszint*)__ARRAY_STRING_VWATCH_STACK)[8] );
+qbs_free(__STRING_N);
+qbs_free(__STRING_OUTNAME);
+qbs_free(__STRING_FNAME);
+qbs_free(__STRING_I);
+qbs_free(__STRING_CHECK);
+qbs_free(__STRING_OLDLINELABEL);
+qbs_free(__STRING_LINELABEL);
+qbs_free(__STRING_C);
+qbs_free(__STRING_TEMP);
+qbs_free(__STRING_GENEXPRESSION);
+qbs_free(__STRING_EXPRESSION);
+qbs_free(__STRING_A);
+qbs_free(__STRING_B);
+qbs_free(__STRING_Z);
+qbs_free(__STRING_Q1);
+qbs_free(__STRING_Q2);
+qbs_free(__STRING_I2);
+qbs_free(__STRING_FILENAME);
+qbs_free(__STRING_LINE);
+qbs_free(__STRING_LASTLINE);
+qbs_free(__STRING_NV);
+qbs_free(__STRING_NUM);
+qbs_free(__STRING_SOURCEFPV);
+qbs_free(__STRING_SV);
+qbs_free(__STRING_FPV);
+qbs_free(__STRING_FLOATCMD);
+qbs_free(__STRING_FPSTRING);
+qbs_free(__STRING_FPBYTES);
+qbs_free(__STRING_SOURCEVAR);
+qbs_free(__STRING_NEWEXPRESSION);
+qbs_free(__STRING_STRINGVAR);
+qbs_free(__STRING_CHECKIFTRUE);
+qbs_free(__STRING_NEWSTRING);
+qbs_free(__STRING_BC);
+qbs_free(__STRING_X);
+qbs_free(__STRING_SHOW);
+qbs_free(__STRING_PARSE10_TERM);
+qbs_free(__STRING_BRANCHTYPE);
+qbs_free(__STRING_T2);
+qbs_free(__STRING_TEMP1);
+qbs_free(__STRING_MSB);
+qbs_free(__STRING_LSB);
+qbs_free(__STRING_RESULT);
+qbs_free(__STRING_HEXVALUE);
+qbs_free(__STRING_DECVALUE);
+qbs_free(__STRING_OPERATORS);
+qbs_free(__STRING_CHAR);
+qbs_free(__STRING_PRECEDENCE);
+qbs_free(__STRING_PRINTA);
+qbs_free(__STRING_PRINTDEV);
+qbs_free(__STRING_PRINTD);
+qbs_free(__STRING_ONTYPE);
+qbs_free(__STRING_DONEON);
+qbs_free(__STRING_SHOWINPUTTEXT);
+qbs_free(__STRING_CASENUMBER);
+qbs_free(__STRING_NEXTCASENUMBER);
+qbs_free(__STRING_DIMVAL);
+qbs_free(__STRING_DEFL);
+qbs_free(__STRING_V);
+qbs_free(__STRING_DEFFN);
+qbs_free(__STRING_DEFFNVAR);
+qbs_free(__STRING_WHILELOOPNUM);
+qbs_free(__STRING_CASETEMP);
+qbs_free(__STRING_PARSE00_TERM);
+qbs_free(__STRING_STRINGPOINTERTEMP);
+qbs_free(_SUB_VWATCH_STRING_VW_BUFFER);
+qbs_free(_SUB_VWATCH_STRING_VW_GLOBALWATCHPOINTS);
+qbs_free(_SUB_VWATCH_STRING_VW_LOCALWATCHPOINTS);
+qbs_free(_SUB_VWATCH_STRING_VW_LASTWATCHPOINT);

@@ -1,0 +1,3 @@
+/Users/glenhewlett/Downloads/New/internal/support/include/beforefirstline.bi
+/Users/glenhewlett/Downloads/New/internal/support/vwatch/vwatch_stub.bm
+/Users/glenhewlett/Downloads/New/internal/support/include/afterlastline.bm

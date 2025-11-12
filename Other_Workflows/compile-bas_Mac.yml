@@ -1,0 +1,173 @@
+name: Compile BAS to macOS ARM executable (per-file watch)
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build-macos:
+    runs-on: macos-14
+    timeout-minutes: 20
+    steps:
+      - name: Checkout code (including tools/)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: true
+
+      - name: Prepare QB64-PE compiler (macOS ARM)
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ -d tools/qb64pe_mac_arm ]] || { echo "Missing tools/qb64pe_mac_arm/"; ls -la tools/ || true; exit 1; }
+
+          # copy entire tool tree in case qb64pe needs adjacent resources
+          rm -rf qb64pe_dir || true
+          cp -a tools/qb64pe_mac_arm qb64pe_dir
+          chmod -R +x qb64pe_dir || true
+
+          # Remove quarantine & ad-hoc sign from binary(s)
+          xattr -cr qb64pe_dir 2>/dev/null || true
+          codesign --force --sign - qb64pe_dir/* 2>/dev/null || true
+
+          echo "QB64-PE files (qb64pe_dir):"
+          ls -la qb64pe_dir || true
+          for f in qb64pe_dir/*; do file "$f" || true; done
+
+      - name: Per-.BAS compile loop (run qb64pe in background and watch)
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          echo "Got HERE1"
+          QB64PE="./qb64pe_dir/qb64pe"
+          if [[ ! -x "$QB64PE" ]]; then
+            echo "qb64pe not executable at $QB64PE; searching for any executable in qb64pe_dir..."
+            for cand in qb64pe_dir/*; do
+              [[ -x "$cand" ]] || continue
+              QB64PE="$cand"
+              break
+            done
+          fi
+
+          echo "Got HERE2"
+
+          echo "Glen command:$QB64PE"
+
+          echo "Got HERE3"
+          echo "Getting BASIC programs to compile"
+
+          # Portable: macOS's default /bin/bash is bash 3.2 and does NOT have 'mapfile' / 'readarray'.
+          # Use a while-read -d '' loop with find -print0 instead (portable on macOS and Linux).
+          found=0
+          while IFS= read -r -d '' bas; do
+            found=1
+            bas=${bas#./}
+            echo
+            echo "=== Processing: $bas ==="
+            if [[ ! -f "$bas" ]]; then
+              echo "File disappeared: $bas (skipping)"
+              continue
+            fi
+
+            echo "Got HERE6"
+            BASNAME=$(basename "$bas" .bas)
+            echo "Expecting executable named: $BASNAME"
+            echo "Got HERE7"
+
+            rm -f "./$BASNAME" || true
+            rm -f "./${BASNAME}.run.log" "./Temp.txt" || true
+            echo "Got HERE8"
+
+            echo "Starting qb64pe for $bas ..."
+            "$QB64PE" -c "$bas" > Temp.txt 2>&1 &
+            qbpid=$!
+            echo "qb64pe pid: $qbpid"
+            echo "Got HERE9"
+
+            produced=""
+            for i in $(seq 1 60); do
+
+            echo "Got HERE10"
+
+              sleep 1
+              if [[ -f "./$BASNAME" ]]; then
+                echo "Executable './$BASNAME' found after ${i}s"
+                produced=1
+                if kill -0 "$qbpid" 2>/dev/null; then
+                  echo "Killing qb64pe pid $qbpid"
+                  kill "$qbpid" 2>/dev/null || true
+                  wait "$qbpid" 2>/dev/null || true
+                fi
+                break
+              fi
+              if ! kill -0 "$qbpid" 2>/dev/null; then
+                echo "qb64pe process $qbpid exited before producing exe (after ${i}s)"
+                wait "$qbpid" 2>/dev/null || true
+                break
+              fi
+            done
+
+            echo "Got HERE10"
+
+            if kill -0 "$qbpid" 2>/dev/null; then
+              echo "Timeout reached (60s) for $bas; killing qb64pe pid $qbpid"
+              kill "$qbpid" 2>/dev/null || true
+              wait "$qbpid" 2>/dev/null || true
+            fi
+
+            if [[ -f Temp.txt ]]; then
+              mv Temp.txt "${BASNAME}.run.log"
+            fi
+
+            if [[ -n "$produced" && -f "./$BASNAME" ]]; then
+              outname="${BASNAME}-macos-arm64"
+              echo "Renaming './$BASNAME' -> './$outname'"
+              mv -f "./$BASNAME" "./$outname" || true
+              chmod +x "./$outname" || true
+              file "./$outname" || true
+            else
+              echo "No executable produced for $bas within 60s."
+              ls -la . || true
+            fi
+          done < <(find . -type d -name .github -prune -o -type f -iname '*.bas' -print0)
+
+          if [[ $found -eq 0 ]]; then
+            echo "No .bas files found; exiting"
+            exit 1
+          fi
+
+      - name: List results
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "=== Executables produced ==="
+          find . -maxdepth 2 -type f -name '*-macos-arm64' -ls || echo "(none)"
+          echo "=== Per-file run logs ==="
+          find . -maxdepth 2 -type f -name '*.run.log' -ls || echo "(none)"
+
+      - name: Upload built executables and logs (always)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qb64pe-build-artifacts
+          path: |
+            *.run.log
+            *-macos-arm64
+
+      - name: Create tarball of qb64pe_dir (for debug)
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          tar -czf qb64pe_dir.tgz qb64pe_dir || true
+
+      - name: Upload qb64pe_dir tarball (always)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qb64pe-dir
+          path: qb64pe_dir.tgz

@@ -1,0 +1,49 @@
+fixoperationorder
+FF03
+doscreen
+coco3
+RestoreStack
+start:
+LengthTotal
+NormalDelta
+Execute
+LoaderSettings
+CompType
+Sections =
+Hex$
+MoverCode
+BackwardDecompSize
+LoadPoint
++6
+1d1
+LoaderSize
+SectionLength
+NormalDecomp
+NormalLoaderCode
+LoaderCode
+ff00
+fe00
+8900
+scns
+divisor
+codelen
+MSB
+main_input_size
+Blocks
+Pointer = 0
+Pointer = 0 
+block = 0
+blocks = 0
+section = 0
+Decoder
+print
+If verbose > 0 Then Print
+main_input_data
+Then Print "Doing backward compression
+Dozx0Compression
+GoSub Dozx0Compression 
+main_output_size
+MAX_OFFSET_ZX0
+Flag64k
+main_output_name
+left$

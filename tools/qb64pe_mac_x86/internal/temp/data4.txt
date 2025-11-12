@@ -1,0 +1,23 @@
+long double *_FUNC__CLAMP_FLOAT__CLAMP=NULL;
+if(_FUNC__CLAMP_FLOAT__CLAMP==NULL){
+_FUNC__CLAMP_FLOAT__CLAMP=(long double*)mem_static_malloc(32);
+*_FUNC__CLAMP_FLOAT__CLAMP=0;
+}
+long double *_FUNC__CLAMP_FLOAT__REALMIN=NULL;
+if(_FUNC__CLAMP_FLOAT__REALMIN==NULL){
+_FUNC__CLAMP_FLOAT__REALMIN=(long double*)mem_static_malloc(32);
+*_FUNC__CLAMP_FLOAT__REALMIN=0;
+}
+long double *_FUNC__CLAMP_FLOAT__REALMAX=NULL;
+if(_FUNC__CLAMP_FLOAT__REALMAX==NULL){
+_FUNC__CLAMP_FLOAT__REALMAX=(long double*)mem_static_malloc(32);
+*_FUNC__CLAMP_FLOAT__REALMAX=0;
+}
+void *vwatch_local_vars[ 6];
+vwatch_local_vars[0] = &_FUNC__CLAMP_FLOAT__CLAMP;
+vwatch_local_vars[1] = &_FUNC__CLAMP_FLOAT__VALUE;
+vwatch_local_vars[2] = &_FUNC__CLAMP_FLOAT__MINVAL;
+vwatch_local_vars[3] = &_FUNC__CLAMP_FLOAT__MAXVAL;
+vwatch_local_vars[4] = &_FUNC__CLAMP_FLOAT__REALMIN;
+vwatch_local_vars[5] = &_FUNC__CLAMP_FLOAT__REALMAX;
+

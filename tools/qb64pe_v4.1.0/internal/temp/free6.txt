@@ -1,0 +1,4 @@
+if(oldstr2353){
+if(oldstr2353->fixed)qbs_set(oldstr2353,_FUNC_PARSELONGSETTING_STRING_TOKEN);
+qbs_free(_FUNC_PARSELONGSETTING_STRING_TOKEN);
+}

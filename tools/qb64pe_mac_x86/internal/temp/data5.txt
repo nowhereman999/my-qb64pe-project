@@ -1,0 +1,57 @@
+qbs *_FUNC__ENCODEURL_STRING__ENCODEURL=NULL;
+if (!_FUNC__ENCODEURL_STRING__ENCODEURL)_FUNC__ENCODEURL_STRING__ENCODEURL=qbs_new(0,0);
+qbs*oldstr813=NULL;
+if(_FUNC__ENCODEURL_STRING__URL->tmp||_FUNC__ENCODEURL_STRING__URL->fixed||_FUNC__ENCODEURL_STRING__URL->readonly){
+oldstr813=_FUNC__ENCODEURL_STRING__URL;
+if (oldstr813->cmem_descriptor){
+_FUNC__ENCODEURL_STRING__URL=qbs_new_cmem(oldstr813->len,0);
+}else{
+_FUNC__ENCODEURL_STRING__URL=qbs_new(oldstr813->len,0);
+}
+memcpy(_FUNC__ENCODEURL_STRING__URL->chr,oldstr813->chr,oldstr813->len);
+}
+qbs *_FUNC__ENCODEURL_STRING__TMP=NULL;
+if (!_FUNC__ENCODEURL_STRING__TMP)_FUNC__ENCODEURL_STRING__TMP=qbs_new(0,0);
+int16 *_FUNC__ENCODEURL_INTEGER__INQUERY=NULL;
+if(_FUNC__ENCODEURL_INTEGER__INQUERY==NULL){
+_FUNC__ENCODEURL_INTEGER__INQUERY=(int16*)mem_static_malloc(2);
+*_FUNC__ENCODEURL_INTEGER__INQUERY=0;
+}
+int16 *_FUNC__ENCODEURL_INTEGER__ISKEY=NULL;
+if(_FUNC__ENCODEURL_INTEGER__ISKEY==NULL){
+_FUNC__ENCODEURL_INTEGER__ISKEY=(int16*)mem_static_malloc(2);
+*_FUNC__ENCODEURL_INTEGER__ISKEY=0;
+}
+int16 *_FUNC__ENCODEURL_INTEGER__P=NULL;
+if(_FUNC__ENCODEURL_INTEGER__P==NULL){
+_FUNC__ENCODEURL_INTEGER__P=(int16*)mem_static_malloc(2);
+*_FUNC__ENCODEURL_INTEGER__P=0;
+}
+int16 *_FUNC__ENCODEURL_INTEGER__A=NULL;
+if(_FUNC__ENCODEURL_INTEGER__A==NULL){
+_FUNC__ENCODEURL_INTEGER__A=(int16*)mem_static_malloc(2);
+*_FUNC__ENCODEURL_INTEGER__A=0;
+}
+int16 *_FUNC__ENCODEURL_INTEGER__VALID=NULL;
+if(_FUNC__ENCODEURL_INTEGER__VALID==NULL){
+_FUNC__ENCODEURL_INTEGER__VALID=(int16*)mem_static_malloc(2);
+*_FUNC__ENCODEURL_INTEGER__VALID=0;
+}
+int32 fornext_value815;
+int32 fornext_finalvalue815;
+int32 fornext_step815;
+uint8 fornext_step_negative815;
+byte_element_struct *byte_element_816=NULL;
+if (!byte_element_816){
+if ((mem_static_pointer+=12)<mem_static_limit) byte_element_816=(byte_element_struct*)(mem_static_pointer-12); else byte_element_816=(byte_element_struct*)mem_static_malloc(12);
+}
+void *vwatch_local_vars[ 8];
+vwatch_local_vars[0] = &_FUNC__ENCODEURL_STRING__ENCODEURL;
+vwatch_local_vars[1] = &_FUNC__ENCODEURL_STRING__URL;
+vwatch_local_vars[2] = &_FUNC__ENCODEURL_STRING__TMP;
+vwatch_local_vars[3] = &_FUNC__ENCODEURL_INTEGER__INQUERY;
+vwatch_local_vars[4] = &_FUNC__ENCODEURL_INTEGER__ISKEY;
+vwatch_local_vars[5] = &_FUNC__ENCODEURL_INTEGER__P;
+vwatch_local_vars[6] = &_FUNC__ENCODEURL_INTEGER__A;
+vwatch_local_vars[7] = &_FUNC__ENCODEURL_INTEGER__VALID;
+

@@ -1,0 +1,39 @@
+qbs *_FUNC__DECODEURL_STRING__DECODEURL=NULL;
+if (!_FUNC__DECODEURL_STRING__DECODEURL)_FUNC__DECODEURL_STRING__DECODEURL=qbs_new(0,0);
+qbs*oldstr818=NULL;
+if(_FUNC__DECODEURL_STRING__URL->tmp||_FUNC__DECODEURL_STRING__URL->fixed||_FUNC__DECODEURL_STRING__URL->readonly){
+oldstr818=_FUNC__DECODEURL_STRING__URL;
+if (oldstr818->cmem_descriptor){
+_FUNC__DECODEURL_STRING__URL=qbs_new_cmem(oldstr818->len,0);
+}else{
+_FUNC__DECODEURL_STRING__URL=qbs_new(oldstr818->len,0);
+}
+memcpy(_FUNC__DECODEURL_STRING__URL->chr,oldstr818->chr,oldstr818->len);
+}
+qbs *_FUNC__DECODEURL_STRING__TMP=NULL;
+if (!_FUNC__DECODEURL_STRING__TMP)_FUNC__DECODEURL_STRING__TMP=qbs_new(0,0);
+int16 *_FUNC__DECODEURL_INTEGER__P=NULL;
+if(_FUNC__DECODEURL_INTEGER__P==NULL){
+_FUNC__DECODEURL_INTEGER__P=(int16*)mem_static_malloc(2);
+*_FUNC__DECODEURL_INTEGER__P=0;
+}
+int16 *_FUNC__DECODEURL_INTEGER__A=NULL;
+if(_FUNC__DECODEURL_INTEGER__A==NULL){
+_FUNC__DECODEURL_INTEGER__A=(int16*)mem_static_malloc(2);
+*_FUNC__DECODEURL_INTEGER__A=0;
+}
+int32 fornext_value820;
+int32 fornext_finalvalue820;
+int32 fornext_step820;
+uint8 fornext_step_negative820;
+byte_element_struct *byte_element_821=NULL;
+if (!byte_element_821){
+if ((mem_static_pointer+=12)<mem_static_limit) byte_element_821=(byte_element_struct*)(mem_static_pointer-12); else byte_element_821=(byte_element_struct*)mem_static_malloc(12);
+}
+void *vwatch_local_vars[ 5];
+vwatch_local_vars[0] = &_FUNC__DECODEURL_STRING__DECODEURL;
+vwatch_local_vars[1] = &_FUNC__DECODEURL_STRING__URL;
+vwatch_local_vars[2] = &_FUNC__DECODEURL_STRING__TMP;
+vwatch_local_vars[3] = &_FUNC__DECODEURL_INTEGER__P;
+vwatch_local_vars[4] = &_FUNC__DECODEURL_INTEGER__A;
+

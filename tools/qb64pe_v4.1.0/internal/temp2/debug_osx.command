@@ -1,0 +1,15 @@
+cd "$(dirname "$0")"
+Pause()
+{
+OLDCONFIG=`stty -g`
+stty -icanon -echo min 1 time 0
+dd count=1 2>/dev/null
+stty $OLDCONFIG
+}
+echo "C++ Debugging: test using GDB"
+echo "Debugger commands:"
+echo "After the debugger launches type 'run' to start your program"
+echo "After your program crashes type 'list' to find where the problem is and fix/report it"
+echo "(the GDB debugger has many other useful commands, this advice is for beginners)"
+gdb "/Users/glenhewlett/My Drive (nowhereman999@gmail.com)/Programming/qb64pe_v4.1.0/test"
+Pause

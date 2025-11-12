@@ -1,0 +1,20 @@
+qbs*oldstr3797=NULL;
+if(_SUB_PUSHELEMENT_STRING_A->tmp||_SUB_PUSHELEMENT_STRING_A->fixed||_SUB_PUSHELEMENT_STRING_A->readonly){
+oldstr3797=_SUB_PUSHELEMENT_STRING_A;
+if (oldstr3797->cmem_descriptor){
+_SUB_PUSHELEMENT_STRING_A=qbs_new_cmem(oldstr3797->len,0);
+}else{
+_SUB_PUSHELEMENT_STRING_A=qbs_new(oldstr3797->len,0);
+}
+memcpy(_SUB_PUSHELEMENT_STRING_A->chr,oldstr3797->chr,oldstr3797->len);
+}
+qbs*oldstr3798=NULL;
+if(_SUB_PUSHELEMENT_STRING_B->tmp||_SUB_PUSHELEMENT_STRING_B->fixed||_SUB_PUSHELEMENT_STRING_B->readonly){
+oldstr3798=_SUB_PUSHELEMENT_STRING_B;
+if (oldstr3798->cmem_descriptor){
+_SUB_PUSHELEMENT_STRING_B=qbs_new_cmem(oldstr3798->len,0);
+}else{
+_SUB_PUSHELEMENT_STRING_B=qbs_new(oldstr3798->len,0);
+}
+memcpy(_SUB_PUSHELEMENT_STRING_B->chr,oldstr3798->chr,oldstr3798->len);
+}

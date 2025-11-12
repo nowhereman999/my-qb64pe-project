@@ -1,0 +1,8 @@
+if(oldstr7120){
+if(oldstr7120->fixed)qbs_set(oldstr7120,_FUNC_WIKILOOKAHEAD_STRING_A);
+qbs_free(_FUNC_WIKILOOKAHEAD_STRING_A);
+}
+if(oldstr7121){
+if(oldstr7121->fixed)qbs_set(oldstr7121,_FUNC_WIKILOOKAHEAD_STRING_TOKEN);
+qbs_free(_FUNC_WIKILOOKAHEAD_STRING_TOKEN);
+}

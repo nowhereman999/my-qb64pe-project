@@ -1,0 +1,5 @@
+if(oldstr4084){
+if(oldstr4084->fixed)qbs_set(oldstr4084,_SUB_FINDINNERPARENS_STRING_EXP);
+qbs_free(_SUB_FINDINNERPARENS_STRING_EXP);
+}
+qbs_free(_SUB_FINDINNERPARENS_STRING_ELE);

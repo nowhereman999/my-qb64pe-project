@@ -1,0 +1,4 @@
+if(oldstr6793){
+if(oldstr6793->fixed)qbs_set(oldstr6793,_SUB_CLEANSUBNAME_STRING_N);
+qbs_free(_SUB_CLEANSUBNAME_STRING_N);
+}

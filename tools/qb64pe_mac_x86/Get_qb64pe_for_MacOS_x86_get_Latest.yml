@@ -1,0 +1,59 @@
+name: Build QB64-PE for macOS x86 (No IDE Launch)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-13
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Xcode Command Line Tools
+        run: xcode-select --install || true
+
+      - name: Clone QB64-PE source
+        run: |
+          git clone https://github.com/QB64-Phoenix-Edition/QB64pe.git qb64pe-source
+
+      - name: Build QB64-PE – headless (no IDE launch)
+        run: |
+          cd qb64pe-source
+          chmod +x setup_osx.command
+          ./setup_osx.command nolaunch
+
+      - name: Verify binary was built
+        run: |
+          [ -f "qb64pe-source/qb64pe" ] && echo "qb64pe built successfully!" || exit 1
+
+      - name: Package for repo
+        run: |
+          mkdir -p qb64pe_mac_x86
+          cp qb64pe-source/qb64pe qb64pe_mac_x86/
+          cp -R qb64pe-source/internal qb64pe_mac_x86/
+          cp qb64pe-source/Makefile qb64pe_mac_x86/
+          cp -R qb64pe-source/source qb64pe_mac_x86/
+          cp -R qb64pe-source/lib qb64pe_mac_x86/ 2>/dev/null || true
+
+      - name: Create zip
+        run: |
+          zip -r qb64pe_mac_x86.zip qb64pe_mac_x86
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: qb64pe-mac-x86-no-ide
+          path: qb64pe_mac_x86.zip
+          retention-days: 30
+
+      - name: Job summary
+        run: |
+          echo "## QB64-PE macOS x86 Built (No IDE Launch)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Used built-in **nolaunch** parameter – no patching needed!" >> $GITHUB_STEP_SUMMARY
+          echo "IDE will **never** start." >> $GITHUB_STEP_SUMMARY
+          echo "Download **qb64pe_mac_x86.zip** from Artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "Extract to: **tools/qb64pe_mac_x86/**" >> $GITHUB_STEP_SUMMARY
+          echo "Then commit and push." >> $GITHUB_STEP_SUMMARY

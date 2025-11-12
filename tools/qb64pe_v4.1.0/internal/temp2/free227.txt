@@ -1,0 +1,4 @@
+if(oldstr4324){
+if(oldstr4324->fixed)qbs_set(oldstr4324,_SUB_INITIALISE_UDT_VARSTRINGS_STRING_N);
+qbs_free(_SUB_INITIALISE_UDT_VARSTRINGS_STRING_N);
+}

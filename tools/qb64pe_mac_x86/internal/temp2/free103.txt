@@ -1,0 +1,4 @@
+if(oldstr3803){
+if(oldstr3803->fixed)qbs_set(oldstr3803,_FUNC_GETELEMENTSBEFORE_STRING_A);
+qbs_free(_FUNC_GETELEMENTSBEFORE_STRING_A);
+}
