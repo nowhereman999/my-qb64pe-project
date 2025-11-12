@@ -22,7 +22,7 @@ on:
 
 jobs:
   build:
-    runs-on: macos-13 # Intel x86_64 runner
+    runs-on: macos-13
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -53,39 +53,56 @@ jobs:
           if [ -n "${{ inputs.bas_paths }}" ]; then
             IFS=',' read -r -a FILES <<< "${{ inputs.bas_paths }}"
           else
-            # 1. All .bas/.BAS in the root of BASIC-To-6809_Source_Code/
-            mapfile -t ROOT_FILES < <(find "$GITHUB_WORKSPACE/BASIC-To-6809_Source_Code" -maxdepth 1 -type f \( -iname "*.bas" -o -iname "*.BAS" \) | sed "s|$GITHUB_WORKSPACE/||")
+            # --- Bash 3.2 compatible way to get root .bas files ---
+            ROOT_DIR="$GITHUB_WORKSPACE/BASIC-To-6809_Source_Code"
+            ROOT_FILES=""
+            for f in "$ROOT_DIR"/*; do
+              if [[ -f "$f" && ("$f" == *.bas || "$f" == *.BAS) ]]; then
+                rel_path="${f#$GITHUB_WORKSPACE/}"
+                ROOT_FILES="$ROOT_FILES $rel_path"
+              fi
+            done
+            ROOT_FILES="${ROOT_FILES# }"  # trim leading space
 
-            # 2. Add SDECB.bas (case-insensitive) from IDE/ — only if exists
+            # --- Add SDECB.bas (only once, case-insensitive) ---
             SDECB_PATH=""
-            if [ -f "$GITHUB_WORKSPACE/BASIC-To-6809_Source_Code/IDE/SDECB.bas" ]; then
+            if [ -f "$ROOT_DIR/IDE/SDECB.bas" ]; then
               SDECB_PATH="BASIC-To-6809_Source_Code/IDE/SDECB.bas"
-            elif [ -f "$GITHUB_WORKSPACE/BASIC-To-6809_Source_Code/IDE/SDECB.BAS" ]; then
+            elif [ -f "$ROOT_DIR/IDE/SDECB.BAS" ]; then
               SDECB_PATH="BASIC-To-6809_Source_Code/IDE/SDECB.BAS"
             fi
 
-            # Combine both lists
-            FILES=("${ROOT_FILES[@]}")
-            [[ -n "$SDECB_PATH" ]] && FILES+=("$SDECB_PATH")
+            # Combine
+            FILES="$ROOT_FILES"
+            [ -n "$SDECB_PATH" ] && FILES="$FILES $SDECB_PATH"
           fi
 
-          # Remove duplicates just in case
-          UNIQUE_FILES=($(printf '%s\n' "${FILES[@]}" | sort -u))
-          FILES=("${UNIQUE_FILES[@]}")
+          # Convert space-separated string to array
+          IFS=' ' read -r -a FILE_ARRAY <<< "$FILES"
 
-          if [ ${#FILES[@]} -eq 0 ]; then
+          # Remove duplicates
+          UNIQUE=""
+          for f in "${FILE_ARRAY[@]}"; do
+            if [[ "$UNIQUE" != *" $f "* ]]; then
+              UNIQUE="$UNIQUE $f "
+            fi
+          done
+          UNIQUE="${UNIQUE% }"  # trim trailing space
+          IFS=' ' read -r -a FILE_ARRAY <<< "$UNIQUE"
+
+          if [ ${#FILE_ARRAY[@]} -eq 0 ]; then
             echo "No .bas files to compile."
             echo "executables=" >> "$GITHUB_OUTPUT"
             echo "compiled_count=0" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          echo "Compiling ${#FILES[@]} file(s):"
-          printf ' - %s\n' "${FILES[@]}"
+          echo "Compiling ${#FILE_ARRAY[@]} file(s):"
+          printf ' - %s\n' "${FILE_ARRAY[@]}"
 
           EXECUTABLES=""
           COUNT=0
-          for file in "${FILES[@]}"; do
+          for file in "${FILE_ARRAY[@]}"; do
             file=$(echo "$file" | xargs)
             [[ ! "$file" =~ \.[bB][aA][sS]$ ]] && continue
 
