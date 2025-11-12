@@ -1,0 +1,161 @@
+name: Compile QB64-PE (Linux ARM64)
+on:
+  push:
+    paths:
+      - 'BASIC-To-6809_Source_Code/*.bas'
+      - 'BASIC-To-6809_Source_Code/*.BAS'
+      - 'BASIC-To-6809_Source_Code/IDE/SDECB.bas'
+      - 'BASIC-To-6809_Source_Code/IDE/SDECB.BAS'
+  pull_request:
+    paths:
+      - 'BASIC-To-6809_Source_Code/*.bas'
+      - 'BASIC-To-6809_Source_Code/*.BAS'
+      - 'BASIC-To-6809_Source_Code/IDE/SDECB.bas'
+      - 'BASIC-To-6809_Source_Code/IDE/SDECB.BAS'
+  workflow_dispatch:
+    inputs:
+      bas_paths:
+        description: 'Comma-separated .bas file paths (relative to repo root)'
+        required: false
+        type: string
+
+jobs:
+  build:
+    runs-on: ubuntu-latest-arm64
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install runtime dependencies (ARM64)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libglu1-mesa libgl1 libx11-6 libxcb1 libpng16-16 \
+            libcurl4 libasound2t64 libxi6 libxrender1 \
+            libxext6 libxfixes3 libxrandr2 libxinerama1 \
+            libxcursor1 libxss1
+
+      - name: Verify QB64-PE ARM64 setup
+        run: |
+          QB64PE_DIR="$GITHUB_WORKSPACE/tools/qb64pe_Linux_arm64"
+          echo "Looking for QB64-PE in: $QB64PE_DIR"
+          [ -d "$QB64PE_DIR" ] || { echo "ERROR: $QB64PE_DIR missing! Commit the folder."; exit 1; }
+          cd "$QB64PE_DIR"
+          [ -f "./qb64pe" ] || { echo "qb64pe missing!"; exit 1; }
+          [ -d "./internal" ] || { echo "internal/ missing!"; exit 1; }
+          [ -f "./Makefile" ] || { echo "Makefile missing!"; exit 1; }
+          file ./qb64pe
+          echo "QB64-PE ARM64 setup verified."
+
+      - name: Make qb64pe executable
+        run: |
+          chmod +x "$GITHUB_WORKSPACE/tools/qb64pe_Linux_arm64/qb64pe"
+
+      - name: Compile selected .bas files
+        id: compile
+        run: |
+          QB64PE_DIR="$GITHUB_WORKSPACE/tools/qb64pe_Linux_arm64"
+          ARTIFACT_DIR="$GITHUB_WORKSPACE/artifacts"
+          mkdir -p "$ARTIFACT_DIR"
+
+          if [ -n "${{ inputs.bas_paths }}" ]; then
+            IFS=',' read -r -a FILES <<< "${{ inputs.bas_paths }}"
+          else
+            ROOT_DIR="$GITHUB_WORKSPACE/BASIC-To-6809_Source_Code"
+            ROOT_FILES=""
+            for f in "$ROOT_DIR"/*; do
+              if [[ -f "$f" && ("$f" == *.bas || "$f" == *.BAS) ]]; then
+                rel_path="${f#$GITHUB_WORKSPACE/}"
+                ROOT_FILES="$ROOT_FILES $rel_path"
+              fi
+            done
+            ROOT_FILES="${ROOT_FILES# }"
+
+            SDECB_PATH=""
+            if [ -f "$ROOT_DIR/IDE/SDECB.bas" ]; then
+              SDECB_PATH="BASIC-To-6809_Source_Code/IDE/SDECB.bas"
+            elif [ -f "$ROOT_DIR/IDE/SDECB.BAS" ]; then
+              SDECB_PATH="BASIC-To-6809_Source_Code/IDE/SDECB.BAS"
+            fi
+
+            FILES="$ROOT_FILES"
+            [ -n "$SDECB_PATH" ] && FILES="$FILES $SDECB_PATH"
+          fi
+
+          IFS=' ' read -r -a FILE_ARRAY <<< "$FILES"
+          UNIQUE=""
+          for f in "${FILE_ARRAY[@]}"; do
+            [[ "$UNIQUE" != *" $f "* ]] && UNIQUE="$UNIQUE $f "
+          done
+          UNIQUE="${UNIQUE% }"
+          IFS=' ' read -r -a FILE_ARRAY <<< "$UNIQUE"
+
+          if [ ${#FILE_ARRAY[@]} -eq 0 ]; then
+            echo "No .bas files to compile."
+            echo "executables=" >> "$GITHUB_OUTPUT"
+            echo "compiled_count=0" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "Compiling ${#FILE_ARRAY[@]} file(s):"
+          printf ' - %s\n' "${FILE_ARRAY[@]}"
+
+          EXECUTABLES=""
+          COUNT=0
+          for file in "${FILE_ARRAY[@]}"; do
+            file=$(echo "$file" | xargs)
+            [[ ! "$file" =~ \.[bB][aA][sS]$ ]] && continue
+
+            rel_dir=$(dirname "$file")
+            filename=$(basename "$file")
+            base="${filename%.*}"
+            full_dir="$GITHUB_WORKSPACE/$rel_dir"
+
+            echo "Compiling (in $rel_dir): $filename → $base"
+            cd "$full_dir"
+
+            if ! "$QB64PE_DIR/qb64pe" -x "$filename" -o "$base"; then
+              LOG_PATH="$QB64PE_DIR/internal/temp/compilelog.txt"
+              echo "=== COMPILATION ERROR ==="
+              [ -f "$LOG_PATH" ] && cat "$LOG_PATH" || echo "compilelog.txt not found."
+              echo "========================"
+              exit 1
+            fi
+
+            cp "$base" "$ARTIFACT_DIR/$base"
+            rm -f "$base"
+            EXECUTABLES="$EXECUTABLES $base"
+            COUNT=$((COUNT + 1))
+          done
+
+          EXECUTABLES="${EXECUTABLES# }"
+          echo "executables=$EXECUTABLES" >> "$GITHUB_OUTPUT"
+          echo "compiled_count=$COUNT" >> "$GITHUB_OUTPUT"
+
+      - name: Create zip archive
+        if: steps.compile.outputs.compiled_count > 0
+        run: |
+          cd "$GITHUB_WORKSPACE/artifacts"
+          zip qb64pe_Linux_arm64_executables.zip ${{ steps.compile.outputs.executables }}
+          echo "Zipped ${{ steps.compile.outputs.compiled_count }} ARM64 executable(s)"
+
+      - name: Upload artifact
+        if: steps.compile.outputs.compiled_count > 0
+        uses: actions/upload-artifact@v4
+        with:
+          name: qb64pe-linux-arm64-executables
+          path: ${{ github.workspace }}/artifacts/qb64pe_Linux_arm64_executables.zip
+          retention-days: 30
+
+      - name: Job summary
+        if: success()
+        run: |
+          echo "## QB64-PE Linux ARM64 Build Complete" >> $GITHUB_STEP_SUMMARY
+          echo "Compiled ${{ steps.compile.outputs.compiled_count }} program(s) for **aarch64**:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          for exe in ${{ steps.compile.outputs.executables }}; do
+            echo "- \`$exe\`" >> $GITHUB_STEP_SUMMARY
+          done
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Download the zip from **Artifacts** below" >> $GITHUB_STEP_SUMMARY
+          echo "*Native Linux ARM64 (Raspberry Pi 64-bit, Apple Silicon via Rosetta, AWS Graviton, etc.)*" >> $GITHUB_STEP_SUMMARY
