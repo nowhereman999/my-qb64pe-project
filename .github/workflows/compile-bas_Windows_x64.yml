@@ -198,4 +198,3 @@ jobs:
           Add-Content $env:GITHUB_STEP_SUMMARY ''
           Add-Content $env:GITHUB_STEP_SUMMARY 'Download **qb64pe_Windows_x64_executables.zip** from Artifacts'
           Add-Content $env:GITHUB_STEP_SUMMARY '*Native 64-bit Windows .exe files (no dependencies)*'
-          
