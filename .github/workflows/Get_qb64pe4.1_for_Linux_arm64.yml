@@ -1,0 +1,75 @@
+name: Build QB64-PE v4.1 for Linux ARM64 (No IDE Launch)
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest-arm64  # This runs on real ARM64 hardware (Graviton)
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install ARM64 build dependencies (Ubuntu 24.04)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential g++ make \
+            libgl1-mesa-dev libglu1-mesa-dev \
+            libpng-dev libcurl4-openssl-dev \
+            libasound2t64 \
+            libx11-dev libxi-dev libxrender-dev libxext-dev \
+            libxfixes-dev libxrandr-dev libxinerama-dev \
+            libxcursor-dev libxss-dev \
+            libpulse-dev libfreetype-dev zlib1g-dev
+
+      - name: Clone QB64-PE source
+        run: |
+          git clone https://github.com/QB64-Phoenix-Edition/QB64pe.git qb64pe-source
+
+      - name: Checkout version 4.1.0
+        run: |
+          cd qb64pe-source
+          git checkout v4.1.0
+
+      - name: Build QB64-PE – headless (no IDE launch)
+        run: |
+          cd qb64pe-source
+          chmod +x ./setup_lnx.sh
+          ./setup_lnx.sh nolaunch
+
+      - name: Verify binary was built
+        run: |
+          [ -f "qb64pe-source/qb64pe" ] && file qb64pe-source/qb64pe || exit 1
+          echo "qb64pe built successfully for ARM64!"
+
+      - name: Package for repo
+        run: |
+          mkdir -p qb64pe_linux_arm64
+          cp qb64pe-source/qb64pe qb64pe_linux_arm64/
+          cp -R qb64pe-source/internal qb64pe_linux_arm64/
+          cp qb64pe-source/Makefile qb64pe_linux_arm64/
+          cp -R qb64pe-source/source qb64pe_linux_arm64/
+          cp -R qb64pe-source/lib qb64pe_linux_arm64/ 2>/dev/null || true
+
+      - name: Create zip
+        run: |
+          zip -r qb64pe_linux_arm64_v4.1.zip qb64pe_linux_arm64
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: qb64pe-linux-arm64-no-ide-v4.1
+          path: qb64pe_linux_arm64_v4.1.zip
+          retention-days: 30
+
+      - name: Job summary
+        run: |
+          echo "## QB64-PE v4.1 Linux ARM64 Built (No IDE Launch)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Built on **native ARM64 (aarch64)** using **ubuntu-latest-arm64**" >> $GITHUB_STEP_SUMMARY
+          echo "Used built-in **nolaunch** parameter – no patching needed!" >> $GITHUB_STEP_SUMMARY
+          echo "IDE will **never** start." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Download **qb64pe_linux_arm64_v4.1.zip** from Artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "Extract to: **tools/qb64pe_Linux_arm64/**" >> $GITHUB_STEP_SUMMARY
+          echo "Then commit and push." >> $GITHUB_STEP_SUMMARY
