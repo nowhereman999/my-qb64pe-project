@@ -21,19 +21,25 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-24.04-arm  # This runs on real ARM64 hardware
+    runs-on: ubuntu-24.04-arm  # Real ARM64 hardware
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install runtime dependencies (ARM64)
+      - name: Install FULL build + runtime dependencies (ARM64, Ubuntu 24.04)
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            libglu1-mesa libgl1 libx11-6 libxcb1 libpng16-16 \
-            libcurl4 libasound2t64 libxi6 libxrender1 \
-            libxext6 libxfixes3 libxrandr2 libxinerama1 \
-            libxcursor1 libxss1
+            build-essential g++ make \
+            libgl1-mesa-dev \
+            libglu1-mesa-dev \
+            libpng-dev \
+            libcurl4-openssl-dev \
+            libasound2t64 \
+            libx11-dev libxi-dev libxrender-dev libxext-dev \
+            libxfixes-dev libxrandr-dev libxinerama-dev \
+            libxcursor-dev libxss-dev \
+            libpulse-dev libfreetype-dev zlib1g-dev
 
       - name: Verify QB64-PE ARM64 setup
         run: |
