@@ -24,105 +24,133 @@ jobs:
   build:
     runs-on: windows-2022
     env:
-      QB64PE_DIR: ${{ github.workspace }}\tools\qb64pe_Windows_x64
-      ARTIFACT_DIR: ${{ github.workspace }}\artifacts
-      CI: "1"
-      SDL_VIDEODRIVER: dummy
-      SDL_AUDIODRIVER: dummy
-      SDL_RENDER_DRIVER: software
-
+      QB64PE: ${{ github.workspace }}\tools\qb64pe_Windows_x64\qb64pe.exe
+      ARTIFACTS: ${{ github.workspace }}\artifacts
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Compile selected .bas files
-        id: compile
-        shell: pwsh
+      - name: Install MinGW
+        shell: cmd
+        run: choco install mingw -y --no-progress
+
+      - name: Add MinGW to PATH
+        shell: cmd
         run: |
-          $ErrorActionPreference = 'Stop'
-          New-Item -ItemType Directory -Force -Path "$env:ARTIFACT_DIR" | Out-Null
+          for %%p in (
+            "C:\tools\mingw64\bin"
+            "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin"
+            "C:\mingw64\bin"
+          ) do if exist %%p (
+            set "PATH=%%p;%PATH%"
+            echo %%p>> "%GITHUB_PATH%"
+          )
+          gcc --version
 
-          # Build file list (prefer explicit input; otherwise auto-discover)
-          $basInput = '${{ inputs.bas_paths }}'
-          if ($basInput -and $basInput.Trim()) {
-            $files = $basInput.Split(',') |
-              ForEach-Object { $_.Trim() } |
-              Where-Object { $_ } |
-              ForEach-Object { Join-Path $env:GITHUB_WORKSPACE $_ }
-          } else {
-            $root = Join-Path $env:GITHUB_WORKSPACE 'BASIC-To-6809_Source_Code'
-            $files = Get-ChildItem -Path $root -File -Recurse -Include *.bas,*.BAS | Select-Object -Expand FullName
-            $sd1 = Join-Path $root 'IDE\SDECB.bas'
-            $sd2 = Join-Path $root 'IDE\SDECB.BAS'
-            if (Test-Path $sd1) { $files += $sd1 } elseif (Test-Path $sd2) { $files += $sd2 }
-          }
+      - name: Verify QB64-PE
+        shell: cmd
+        run: |
+          if not exist "%QB64PE%" (
+            echo qb64pe.exe missing! Commit tools/qb64pe_Windows_x64/
+            exit 1
+          )
+          echo QB64-PE found.
 
-          # De-dup & validate
-          $files = $files | Sort-Object -Unique
-          if (-not $files -or $files.Count -eq 0) {
-            "executables="        | Out-File -Append -FilePath $env:GITHUB_OUTPUT
-            "compiled_count=0"    | Out-File -Append -FilePath $env:GITHUB_OUTPUT
-            exit 0
-          }
+      - name: Override internal compiler
+        shell: cmd
+        run: |
+          set "INTERNAL=%~dp0tools\qb64pe_Windows_x64\internal\c\c_compiler"
+          rmdir /s /q "%INTERNAL%" 2>nul
+          mkdir "%INTERNAL%\bin" >nul
+          for /f "delims=" %%G in ('where gcc.exe') do set "GCC=%%G"
+          for /f "delims=" %%X in ('where g++.exe') do set "GPP=%%X"
+          for /f "delims=" %%M in ('where make.exe') do set "MAKE=%%M"
+          (
+            echo @echo off
+            echo "%GCC%" %%*
+          ) > "%INTERNAL%\bin\gcc.exe"
+          (
+            echo @echo off
+            echo "%GPP%" %%*
+          ) > "%INTERNAL%\bin\g++.exe"
+          (
+            echo @echo off
+            echo "%MAKE%" %%*
+          ) > "%INTERNAL%\bin\make.exe"
+          copy "%MAKE%" "%INTERNAL%\bin\mingw32-make.exe" /y >nul
+          set "BINDIR=%GCC:~0,-8%"
+          for %%D in (libgcc_s_seh-1.dll libstdc++-6.dll libwinpthread-1.dll) do (
+            if exist "%BINDIR%%%D" copy "%BINDIR%%%D" "%INTERNAL%\bin\" /y >nul
+          )
+          echo Compiler override complete.
 
-          "Compiling $($files.Count) file(s):"
-          $files | ForEach-Object { " - $($_.Substring($env:GITHUB_WORKSPACE.Length + 1))" }
+      - name: Create artifacts folder
+        shell: cmd
+        run: mkdir "%ARTIFACTS%" >nul
 
-          $executables = New-Object System.Collections.Generic.List[string]
-          $count = 0
+      - name: Compile all .bas files (pure CMD - FIXED)
+        id: compile
+        shell: cmd
+        run: |
+          set "ROOT=%GITHUB_WORKSPACE%\BASIC-To-6809_Source_Code"
+          set "EXE_LIST="
+          set "COUNT=0"
 
-          foreach ($abs in $files) {
-            if (-not ($abs -match '\.[bB][aA][sS]$')) { continue }
-            $base = [System.IO.Path]::GetFileNameWithoutExtension($abs)
-            $outName = "$base.exe"  # write into QB64PE_DIR, then copy
+          rem Use a temp file for deduplication (fixes delayed expansion bug)
+          set "SEEN=%TEMP%\qb64pe_seen.txt"
+          if exist "%SEEN%" del "%SEEN%"
 
-            Write-Output "Compiling: $(Split-Path $abs -Leaf) → $outName"
+          if defined INPUT_BAS_PATHS (
+            for %%F in (%INPUT_BAS_PATHS%) do call :compile_one "%%F"
+            goto :done
+          )
 
-            Push-Location $env:QB64PE_DIR
-            # capture compiler output so we have something even if compilelog.txt doesn't appear
-            $cmd = ".\qb64pe.exe -x `"$abs`" -o `"$outName`""
-            Write-Output ">> $cmd"
-            $compileOut = & cmd /c $cmd 2>&1
-            $code = $LASTEXITCODE
-            if ($compileOut) { $compileOut | Out-Host }
-            Pop-Location
+          for /r "%ROOT%" %%F in (*.bas *.BAS) do call :compile_one "%%F"
+          for %%F in ("%ROOT%\IDE\SDECB.bas" "%ROOT%\IDE\SDECB.BAS") do (
+            if exist "%%F" call :compile_one "%%F"
+          )
 
-            if ($code -ne 0) {
-              Write-Output "=== COMPILATION ERROR: $base ==="
-              $logRoot = Join-Path $env:QB64PE_DIR 'internal\temp'
-              if (Test-Path $logRoot) {
-                Write-Output "-- internal\\temp listing --"
-                Get-ChildItem -Path $logRoot -Recurse -File | Select-Object FullName,Length,LastWriteTime | Format-Table | Out-String | Write-Output
-                Write-Output "-- *.txt contents (if any) --"
-                Get-ChildItem -Path $logRoot -Recurse -File -Filter *.txt | ForEach-Object {
-                  Write-Output "----- $($_.FullName) -----"
-                  try { Get-Content $_.FullName | Write-Output } catch { Write-Output "(could not read)" }
-                }
-              } else {
-                Write-Output "(no internal\\temp directory yet)"
-              }
-              Write-Output "================================"
-              exit 1
-            }
+          :done
+          if exist "%SEEN%" del "%SEEN%"
+          echo executables=%EXE_LIST:~1%>> "%GITHUB_OUTPUT%"
+          echo compiled_count=%COUNT%>> "%GITHUB_OUTPUT%"
+          exit /b
 
-            # copy result to artifacts
-            Copy-Item (Join-Path $env:QB64PE_DIR $outName) (Join-Path $env:ARTIFACT_DIR $outName) -Force
-            Remove-Item (Join-Path $env:QB64PE_DIR $outName) -ErrorAction SilentlyContinue
-            $executables.Add($outName) | Out-Null
-            $count++
-          }
+          :compile_one
+          set "FULL=%~f1"
+          set "DIR=%~dp1"
+          set "FILE=%~nx1"
+          set "BASE=%~n1"
 
-          "executables=$($executables -join ' ')" | Out-File -Append -FilePath $env:GITHUB_OUTPUT
-          "compiled_count=$count"                 | Out-File -Append -FilePath $env:GITHUB_OUTPUT
+          rem Skip if already compiled (using temp file)
+          if exist "%SEEN%" findstr /i "^%FULL%$"< "%SEEN%" >nul && exit /b
+          echo %FULL%>> "%SEEN%"
+
+          pushd "%DIR%"
+          echo Compiling %FILE% -^> %BASE%.exe
+          call "%QB64PE%" -x "%FILE%" -o "%BASE%.exe"
+          if errorlevel 1 (
+            echo === COMPILATION ERROR in %FILE% ===
+            if exist "%~dp0tools\qb64pe_Windows_x64\internal\temp\compilelog.txt" (
+              type "%~dp0tools\qb64pe_Windows_x64\internal\temp\compilelog.txt"
+            )
+            popd
+            exit /b 1
+          )
+          copy "%BASE%.exe" "%ARTIFACTS%\%BASE%.exe" /y >nul
+          del "%BASE%.exe" 2>nul
+          set "EXE_LIST=%EXE_LIST% %BASE%.exe"
+          set /a COUNT+=1
+          popd
+          exit /b
 
       - name: Create zip archive
-        if: ${{ steps.compile.outputs.compiled_count != '0' }}
-        shell: pwsh
-        run: |
-          Compress-Archive -Path "$env:ARTIFACT_DIR\*.exe" -DestinationPath qb64pe_Windows_x64_executables.zip -Force
+        if: steps.compile.outputs.compiled_count > 0
+        shell: cmd
+        run: powershell -Command "Compress-Archive -Path '%ARTIFACTS%\*.exe' -DestinationPath qb64pe_Windows_x64_executables.zip -Force"
 
       - name: Upload artifact
-        if: ${{ steps.compile.outputs.compiled_count != '0' }}
+        if: steps.compile.outputs.compiled_count > 0
         uses: actions/upload-artifact@v4
         with:
           name: qb64pe-windows-x64-executables
@@ -130,19 +158,14 @@ jobs:
           retention-days: 30
 
       - name: Job summary
-        if: success()
-        shell: pwsh
-        env:
-          EXEC_LIST: ${{ steps.compile.outputs.executables }}
-          COUNT:     ${{ steps.compile.outputs.compiled_count }}
+        if: success() && steps.compile.outputs.compiled_count > 0
+        shell: cmd
         run: |
-          @"
-          ## QB64-PE Windows x64 Build Complete
-
-          Compiled $env:COUNT program(s):
-
-          $($env:EXEC_LIST -split ' ' | ForEach-Object { "- $_" } | Out-String)
-
-          Download **qb64pe_Windows_x64_executables.zip** from **Artifacts**  
-          *Native 64-bit Windows .exe files (no dependencies)*
-          "@ | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          echo ## QB64-PE Windows x64 Build Complete>> "%GITHUB_STEP_SUMMARY%"
+          echo.>> "%GITHUB_STEP_SUMMARY%"
+          echo Compiled **${{ steps.compile.outputs.compiled_count }}** program(s):>> "%GITHUB_STEP_SUMMARY%"
+          echo.>> "%GITHUB_STEP_SUMMARY%"
+          for %%E in (${{ steps.compile.outputs.executables }}) do echo - `%%E`>> "%GITHUB_STEP_SUMMARY%"
+          echo.>> "%GITHUB_STEP_SUMMARY%"
+          echo Download **qb64pe_Windows_x64_executables.zip** from Artifacts>> "%GITHUB_STEP_SUMMARY%"
+          echo *Native 64-bit Windows .exe files (no dependencies)*>> "%GITHUB_STEP_SUMMARY%"
