@@ -56,17 +56,15 @@ jobs:
           )
           echo QB64-PE found.
 
-      - name: Override internal compiler (CMD)
+      - name: Override internal compiler
         shell: cmd
         run: |
           set "INTERNAL=%~dp0tools\qb64pe_Windows_x64\internal\c\c_compiler"
           rmdir /s /q "%INTERNAL%" 2>nul
           mkdir "%INTERNAL%\bin" >nul
-
           for /f "delims=" %%G in ('where gcc.exe') do set "GCC=%%G"
           for /f "delims=" %%X in ('where g++.exe') do set "GPP=%%X"
           for /f "delims=" %%M in ('where make.exe') do set "MAKE=%%M"
-
           (
             echo @echo off
             echo "%GCC%" %%*
@@ -80,7 +78,6 @@ jobs:
             echo "%MAKE%" %%*
           ) > "%INTERNAL%\bin\make.exe"
           copy "%MAKE%" "%INTERNAL%\bin\mingw32-make.exe" /y >nul
-
           set "BINDIR=%GCC:~0,-8%"
           for %%D in (libgcc_s_seh-1.dll libstdc++-6.dll libwinpthread-1.dll) do (
             if exist "%BINDIR%%%D" copy "%BINDIR%%%D" "%INTERNAL%\bin\" /y >nul
@@ -91,13 +88,14 @@ jobs:
         shell: cmd
         run: mkdir "%ARTIFACTS%" >nul
 
-      - name: Compile all .bas files (pure CMD)
+      - name: Compile all .bas files (pure CMD - fixed)
         id: compile
         shell: cmd
         run: |
           set "ROOT=%GITHUB_WORKSPACE%\BASIC-To-6809_Source_Code"
           set "EXE_LIST="
           set "COUNT=0"
+          set "COMPILED="
 
           :: Manual input override
           if defined INPUT_BAS_PATHS (
@@ -105,9 +103,13 @@ jobs:
             goto :done
           )
 
-          :: Auto-find all .bas/.BAS + SDECB
+          :: Auto-find ALL .bas/.BAS files (including IDE subfolder)
           for /r "%ROOT%" %%F in (*.bas *.BAS) do call :compile_one "%%F"
-          for %%F in ("%ROOT%\IDE\SDECB.bas" "%ROOT%\IDE\SDECB.BAS") do if exist "%%F" call :compile_one "%%F"
+
+          :: Also ensure SDECB is compiled (in case it wasn't picked up)
+          for %%F in ("%ROOT%\IDE\SDECB.bas" "%ROOT%\IDE\SDECB.BAS") do (
+            if exist "%%F" call :compile_one "%%F"
+          )
 
           :done
           echo executables=%EXE_LIST:~1%>> "%GITHUB_OUTPUT%"
@@ -115,14 +117,20 @@ jobs:
           exit /b
 
           :compile_one
-          set "FULL=%~1"
+          set "FULL=%~f1"
           set "DIR=%~dp1"
-          set "NAME=%~n1"
+          set "FILE=%~nx1"
           set "BASE=%~n1"
+
+          :: Skip if already compiled
+          echo %COMPILED% | findstr /i "%FULL%" >nul && exit /b
+          set "COMPILED=%COMPILED% %FULL%"
+
           pushd "%DIR%"
-          echo Compiling %NAME%.bas -^> %BASE%.exe
-          call "%QB64PE%" -x "%NAME%.bas" -o "%BASE%.exe"
+          echo Compiling %FILE% -^> %BASE%.exe
+          call "%QB64PE%" -x "%FILE%" -o "%BASE%.exe"
           if errorlevel 1 (
+            echo === COMPILATION ERROR in %FILE% ===
             if exist "%~dp0tools\qb64pe_Windows_x64\internal\temp\compilelog.txt" (
               type "%~dp0tools\qb64pe_Windows_x64\internal\temp\compilelog.txt"
             )
