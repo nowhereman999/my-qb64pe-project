@@ -9,27 +9,48 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Download QB64-PE v4.1 Windows x64 via official script
+      - name: Install MinGW and dependencies
         run: |
-          $url = "https://qb64phoenix.com/qb64pe/download.php?ver=4.1.0&os=windows&arch=x64"
-          Invoke-WebRequest -Uri $url -OutFile "qb64pe.zip" -UserAgent "GitHubActions"
+          choco install mingw --version=12.2.0.03042022 -y
+          choco install zip -y
 
-      - name: Extract QB64-PE
+      - name: Add MinGW to PATH
         run: |
-          Expand-Archive -Path "qb64pe.zip" -DestinationPath "." -Force
+          echo "C:\mingw64\bin" >> $GITHUB_PATH
 
-      - name: Rename and package for repo
+      - name: Clone QB64-PE source
+        run: |
+          git clone https://github.com/QB64-Phoenix-Edition/QB64pe.git qb64pe-source
+
+      - name: Checkout version 4.1.0
+        run: |
+          cd qb64pe-source
+          git checkout v4.1.0
+
+      - name: Build QB64-PE – headless (no IDE launch)
+        shell: bash
+        run: |
+          cd qb64pe-source
+          chmod +x ./setup_win.cmd
+          ./setup_win.cmd nolaunch
+
+      - name: Verify binary was built
+        run: |
+          if (-not (Test-Path "qb64pe-source/qb64pe.exe")) { exit 1 }
+          Get-Item qb64pe-source/qb64pe.exe
+
+      - name: Package for repo
         run: |
           mkdir qb64pe_windows_x64
-          Copy-Item "qb64pe.exe" qb64pe_windows_x64/
-          Copy-Item -Recurse "internal" qb64pe_windows_x64/
-          Copy-Item "Makefile" qb64pe_windows_x64/ -ErrorAction SilentlyContinue
-          Copy-Item -Recurse "source" qb64pe_windows_x64/
-          Copy-Item -Recurse "lib" qb64pe_windows_x64/ -ErrorAction SilentlyContinue
+          Copy-Item qb64pe-source/qb64pe.exe qb64pe_windows_x64/
+          Copy-Item -Recurse qb64pe-source/internal qb64pe_windows_x64/
+          Copy-Item qb64pe-source/Makefile qb64pe_windows_x64/
+          Copy-Item -Recurse qb64pe-source/source qb64pe_windows_x64/
+          Copy-Item -Recurse qb64pe-source/lib qb64pe_windows_x64/ -ErrorAction SilentlyContinue
 
       - name: Create zip
         run: |
-          Compress-Archive -Path qb64pe_windows_x64 -DestinationPath qb64pe_windows_x64_v4.1.zip -Force
+          Compress-Archive -Path qb64pe_windows_x64 -DestinationPath qb64pe_windows_x64_v4.1.zip
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -42,9 +63,8 @@ jobs:
         run: |
           echo "## QB64-PE v4.1 Windows x64 Built (No IDE Launch)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Downloaded via **official QB64-PE download script** (always works)" >> $GITHUB_STEP_SUMMARY
-          echo "No MinGW, no compilation, no broken links!" >> $GITHUB_STEP_SUMMARY
-          echo "IDE will **never** start." >> $GITHUB_STEP_SUMMARY
+          echo "Built using **MinGW-w64** on **windows-latest**" >> $GITHUB_STEP_SUMMARY
+          echo "Used **nolaunch** parameter – IDE never starts." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Download **qb64pe_windows_x64_v4.1.zip** from Artifacts" >> $GITHUB_STEP_SUMMARY
           echo "Extract to: **tools/qb64pe_Windows_x64/**" >> $GITHUB_STEP_SUMMARY
