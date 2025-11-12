@@ -35,19 +35,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Verify QB64-PE setup
-        shell: pwsh
-        run: |
-          if (-not (Test-Path "$env:QB64PE_DIR\qb64pe.exe")) {
-            Write-Error "qb64pe.exe missing! Commit tools/qb64pe_Windows_x64/ from your machine."
-            exit 1
-          }
-          if (-not (Test-Path "$env:QB64PE_DIR\internal")) {
-            Write-Error "internal/ folder missing next to qb64pe.exe!"
-            exit 1
-          }
-          "QB64-PE Windows toolchain found."
-
       - name: Compile selected .bas files
         id: compile
         shell: pwsh
