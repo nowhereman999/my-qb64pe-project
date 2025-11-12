@@ -26,10 +26,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Debug – list tools folder
+      - name: Install QB64-PE runtime dependencies
         run: |
-          echo "Contents of /tools:"
-          ls -R "$GITHUB_WORKSPACE/tools" || echo "tools/ does not exist yet"
+          sudo apt-get update
+          sudo apt-get install -y \
+            libglu1-mesa \
+            libgl1-mesa-glx \
+            libx11-6 \
+            libxcb1 \
+            libpng16-16 \
+            libcurl4 \
+            libpthread-stubs0-dev
 
       - name: Verify QB64-PE Linux x86_64 setup
         run: |
@@ -37,14 +44,14 @@ jobs:
           echo "Looking for QB64-PE in: $QB64PE_DIR"
           if [ ! -d "$QB64PE_DIR" ]; then
             echo "ERROR: Directory $QB64PE_DIR does not exist!"
-            echo "Make sure tools/qb64pe_Linux_x86_64 (with qb64pe, internal/, Makefile, etc.) is committed to the repo."
+            echo "Make sure tools/qb64pe_Linux_x86_64 is committed."
             exit 1
           fi
           cd "$QB64PE_DIR"
           [ -f "./qb64pe" ] || { echo "qb64pe missing!"; exit 1; }
           [ -d "./internal" ] || { echo "internal/ missing!"; exit 1; }
           [ -f "./Makefile" ] || { echo "Makefile missing!"; exit 1; }
-          echo "QB64-PE setup verified successfully."
+          echo "QB64-PE setup verified."
 
       - name: Make qb64pe executable
         run: |
@@ -83,7 +90,6 @@ jobs:
           fi
 
           IFS=' ' read -r -a FILE_ARRAY <<< "$FILES"
-
           UNIQUE=""
           for f in "${FILE_ARRAY[@]}"; do
             if [[ "$UNIQUE" != *" $f "* ]]; then
