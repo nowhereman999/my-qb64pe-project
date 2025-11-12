@@ -30,8 +30,8 @@ jobs:
       - name: Build QB64-PE – headless (no IDE launch)
         run: |
           cd qb64pe-source
-          chmod +x ./setup_linux.sh
-          ./setup_linux.sh nolaunch   # nolaunch works the same way as on macOS
+          chmod +x ./setup_lnx.sh
+          ./setup_lnx.sh nolaunch   # nolaunch works the same way as on macOS
 
       - name: Verify binary was built
         run: |
