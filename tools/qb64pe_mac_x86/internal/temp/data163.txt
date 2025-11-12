@@ -13,7 +13,7 @@ if(_FUNC_FREEID_INTEGER_IDX==NULL){
 _FUNC_FREEID_INTEGER_IDX=(int16*)mem_static_malloc(2);
 *_FUNC_FREEID_INTEGER_IDX=0;
 }
-int32 fornext_value4047;
-int32 fornext_finalvalue4047;
-int32 fornext_step4047;
-uint8 fornext_step_negative4047;
+int32 fornext_value4037;
+int32 fornext_finalvalue4037;
+int32 fornext_step4037;
+uint8 fornext_step_negative4037;

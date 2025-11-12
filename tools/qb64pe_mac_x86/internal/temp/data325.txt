@@ -1,22 +1,22 @@
-qbs*oldstr6684=NULL;
+qbs*oldstr6670=NULL;
 if(_SUB_ADDTOHISTORY_STRING_WHICH->tmp||_SUB_ADDTOHISTORY_STRING_WHICH->fixed||_SUB_ADDTOHISTORY_STRING_WHICH->readonly){
-oldstr6684=_SUB_ADDTOHISTORY_STRING_WHICH;
-if (oldstr6684->cmem_descriptor){
-_SUB_ADDTOHISTORY_STRING_WHICH=qbs_new_cmem(oldstr6684->len,0);
+oldstr6670=_SUB_ADDTOHISTORY_STRING_WHICH;
+if (oldstr6670->cmem_descriptor){
+_SUB_ADDTOHISTORY_STRING_WHICH=qbs_new_cmem(oldstr6670->len,0);
 }else{
-_SUB_ADDTOHISTORY_STRING_WHICH=qbs_new(oldstr6684->len,0);
+_SUB_ADDTOHISTORY_STRING_WHICH=qbs_new(oldstr6670->len,0);
 }
-memcpy(_SUB_ADDTOHISTORY_STRING_WHICH->chr,oldstr6684->chr,oldstr6684->len);
+memcpy(_SUB_ADDTOHISTORY_STRING_WHICH->chr,oldstr6670->chr,oldstr6670->len);
 }
-qbs*oldstr6685=NULL;
+qbs*oldstr6671=NULL;
 if(_SUB_ADDTOHISTORY_STRING_ENTRY->tmp||_SUB_ADDTOHISTORY_STRING_ENTRY->fixed||_SUB_ADDTOHISTORY_STRING_ENTRY->readonly){
-oldstr6685=_SUB_ADDTOHISTORY_STRING_ENTRY;
-if (oldstr6685->cmem_descriptor){
-_SUB_ADDTOHISTORY_STRING_ENTRY=qbs_new_cmem(oldstr6685->len,0);
+oldstr6671=_SUB_ADDTOHISTORY_STRING_ENTRY;
+if (oldstr6671->cmem_descriptor){
+_SUB_ADDTOHISTORY_STRING_ENTRY=qbs_new_cmem(oldstr6671->len,0);
 }else{
-_SUB_ADDTOHISTORY_STRING_ENTRY=qbs_new(oldstr6685->len,0);
+_SUB_ADDTOHISTORY_STRING_ENTRY=qbs_new(oldstr6671->len,0);
 }
-memcpy(_SUB_ADDTOHISTORY_STRING_ENTRY->chr,oldstr6685->chr,oldstr6685->len);
+memcpy(_SUB_ADDTOHISTORY_STRING_ENTRY->chr,oldstr6671->chr,oldstr6671->len);
 }
 qbs *_SUB_ADDTOHISTORY_STRING_E=NULL;
 if (!_SUB_ADDTOHISTORY_STRING_E)_SUB_ADDTOHISTORY_STRING_E=qbs_new(0,0);
@@ -49,6 +49,6 @@ if(_SUB_ADDTOHISTORY_LONG_NUL==NULL){
 _SUB_ADDTOHISTORY_LONG_NUL=(int32*)mem_static_malloc(4);
 *_SUB_ADDTOHISTORY_LONG_NUL=0;
 }
-int16 pass6688;
-int32 pass6689;
-int16 pass6690;
+int16 pass6674;
+int32 pass6675;
+int16 pass6676;

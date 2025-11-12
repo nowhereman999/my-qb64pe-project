@@ -1,12 +1,12 @@
-qbs*oldstr3983=NULL;
+qbs*oldstr3973=NULL;
 if(_SUB_WRITEBUFRAWDATA_STRING_RAWDATA->tmp||_SUB_WRITEBUFRAWDATA_STRING_RAWDATA->fixed||_SUB_WRITEBUFRAWDATA_STRING_RAWDATA->readonly){
-oldstr3983=_SUB_WRITEBUFRAWDATA_STRING_RAWDATA;
-if (oldstr3983->cmem_descriptor){
-_SUB_WRITEBUFRAWDATA_STRING_RAWDATA=qbs_new_cmem(oldstr3983->len,0);
+oldstr3973=_SUB_WRITEBUFRAWDATA_STRING_RAWDATA;
+if (oldstr3973->cmem_descriptor){
+_SUB_WRITEBUFRAWDATA_STRING_RAWDATA=qbs_new_cmem(oldstr3973->len,0);
 }else{
-_SUB_WRITEBUFRAWDATA_STRING_RAWDATA=qbs_new(oldstr3983->len,0);
+_SUB_WRITEBUFRAWDATA_STRING_RAWDATA=qbs_new(oldstr3973->len,0);
 }
-memcpy(_SUB_WRITEBUFRAWDATA_STRING_RAWDATA->chr,oldstr3983->chr,oldstr3983->len);
+memcpy(_SUB_WRITEBUFRAWDATA_STRING_RAWDATA->chr,oldstr3973->chr,oldstr3973->len);
 }
 int32 *_SUB_WRITEBUFRAWDATA_LONG_BUF=NULL;
 if(_SUB_WRITEBUFRAWDATA_LONG_BUF==NULL){
@@ -38,11 +38,11 @@ if(_SUB_WRITEBUFRAWDATA_LONG_EXT==NULL){
 _SUB_WRITEBUFRAWDATA_LONG_EXT=(int32*)mem_static_malloc(4);
 *_SUB_WRITEBUFRAWDATA_LONG_EXT=0;
 }
-byte_element_struct *byte_element_3984=NULL;
-if (!byte_element_3984){
-if ((mem_static_pointer+=12)<mem_static_limit) byte_element_3984=(byte_element_struct*)(mem_static_pointer-12); else byte_element_3984=(byte_element_struct*)mem_static_malloc(12);
+byte_element_struct *byte_element_3974=NULL;
+if (!byte_element_3974){
+if ((mem_static_pointer+=12)<mem_static_limit) byte_element_3974=(byte_element_struct*)(mem_static_pointer-12); else byte_element_3974=(byte_element_struct*)mem_static_malloc(12);
 }
-byte_element_struct *byte_element_3985=NULL;
-if (!byte_element_3985){
-if ((mem_static_pointer+=12)<mem_static_limit) byte_element_3985=(byte_element_struct*)(mem_static_pointer-12); else byte_element_3985=(byte_element_struct*)mem_static_malloc(12);
+byte_element_struct *byte_element_3975=NULL;
+if (!byte_element_3975){
+if ((mem_static_pointer+=12)<mem_static_limit) byte_element_3975=(byte_element_struct*)(mem_static_pointer-12); else byte_element_3975=(byte_element_struct*)mem_static_malloc(12);
 }

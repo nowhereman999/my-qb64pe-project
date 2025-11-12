@@ -1,9 +1,9 @@
-if(oldstr3676){
-if(oldstr3676->fixed)qbs_set(oldstr3676,_SUB_MANAGEVARIABLELIST_STRING___NAME);
+if(oldstr3666){
+if(oldstr3666->fixed)qbs_set(oldstr3666,_SUB_MANAGEVARIABLELIST_STRING___NAME);
 qbs_free(_SUB_MANAGEVARIABLELIST_STRING___NAME);
 }
-if(oldstr3677){
-if(oldstr3677->fixed)qbs_set(oldstr3677,_SUB_MANAGEVARIABLELIST_STRING___CNAME);
+if(oldstr3667){
+if(oldstr3667->fixed)qbs_set(oldstr3667,_SUB_MANAGEVARIABLELIST_STRING___CNAME);
 qbs_free(_SUB_MANAGEVARIABLELIST_STRING___CNAME);
 }
 qbs_free(_SUB_MANAGEVARIABLELIST_STRING_CNAME);

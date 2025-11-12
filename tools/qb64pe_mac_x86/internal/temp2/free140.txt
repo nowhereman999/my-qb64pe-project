@@ -1,5 +1,0 @@
-if(oldstr3973){
-if(oldstr3973->fixed)qbs_set(oldstr3973,_SUB_WRITEBUFLINE_STRING_TEXT);
-qbs_free(_SUB_WRITEBUFLINE_STRING_TEXT);
-}
-qbs_free(_SUB_WRITEBUFLINE_STRING_BRC);

@@ -1,5 +1,5 @@
-if(oldstr7123){
-if(oldstr7123->fixed)qbs_set(oldstr7123,_FUNC_WIKIBUILDCINDENT_STRING_A);
+if(oldstr7109){
+if(oldstr7109->fixed)qbs_set(oldstr7109,_FUNC_WIKIBUILDCINDENT_STRING_A);
 qbs_free(_FUNC_WIKIBUILDCINDENT_STRING_A);
 }
 qbs_free(_FUNC_WIKIBUILDCINDENT_STRING_ORG);

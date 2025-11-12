@@ -15,11 +15,11 @@ if(_FUNC_INICURRENTSECTION_ULONG_CLOSINGBRACKET==NULL){
 _FUNC_INICURRENTSECTION_ULONG_CLOSINGBRACKET=(uint32*)mem_static_malloc(4);
 *_FUNC_INICURRENTSECTION_ULONG_CLOSINGBRACKET=0;
 }
-int64 fornext_value3944;
-int64 fornext_finalvalue3944;
-int64 fornext_step3944;
-uint8 fornext_step_negative3944;
-int64 fornext_value3946;
-int64 fornext_finalvalue3946;
-int64 fornext_step3946;
-uint8 fornext_step_negative3946;
+int64 fornext_value3934;
+int64 fornext_finalvalue3934;
+int64 fornext_step3934;
+uint8 fornext_step_negative3934;
+int64 fornext_value3936;
+int64 fornext_finalvalue3936;
+int64 fornext_step3936;
+uint8 fornext_step_negative3936;

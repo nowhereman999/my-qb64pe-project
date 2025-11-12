@@ -1,32 +1,15 @@
-qbs *_FUNC__DECODEURL_STRING__DECODEURL=NULL;
-if (!_FUNC__DECODEURL_STRING__DECODEURL)_FUNC__DECODEURL_STRING__DECODEURL=qbs_new(0,0);
-qbs*oldstr697=NULL;
-if(_FUNC__DECODEURL_STRING__URL->tmp||_FUNC__DECODEURL_STRING__URL->fixed||_FUNC__DECODEURL_STRING__URL->readonly){
-oldstr697=_FUNC__DECODEURL_STRING__URL;
-if (oldstr697->cmem_descriptor){
-_FUNC__DECODEURL_STRING__URL=qbs_new_cmem(oldstr697->len,0);
-}else{
-_FUNC__DECODEURL_STRING__URL=qbs_new(oldstr697->len,0);
+int32 *_FUNC_TYPE2MEMTYPEVALUE_LONG_TYPE2MEMTYPEVALUE=NULL;
+if(_FUNC_TYPE2MEMTYPEVALUE_LONG_TYPE2MEMTYPEVALUE==NULL){
+_FUNC_TYPE2MEMTYPEVALUE_LONG_TYPE2MEMTYPEVALUE=(int32*)mem_static_malloc(4);
+*_FUNC_TYPE2MEMTYPEVALUE_LONG_TYPE2MEMTYPEVALUE=0;
 }
-memcpy(_FUNC__DECODEURL_STRING__URL->chr,oldstr697->chr,oldstr697->len);
+int32 *_FUNC_TYPE2MEMTYPEVALUE_LONG_T=NULL;
+if(_FUNC_TYPE2MEMTYPEVALUE_LONG_T==NULL){
+_FUNC_TYPE2MEMTYPEVALUE_LONG_T=(int32*)mem_static_malloc(4);
+*_FUNC_TYPE2MEMTYPEVALUE_LONG_T=0;
 }
-qbs *_FUNC__DECODEURL_STRING__TMP=NULL;
-if (!_FUNC__DECODEURL_STRING__TMP)_FUNC__DECODEURL_STRING__TMP=qbs_new(0,0);
-int16 *_FUNC__DECODEURL_INTEGER__P=NULL;
-if(_FUNC__DECODEURL_INTEGER__P==NULL){
-_FUNC__DECODEURL_INTEGER__P=(int16*)mem_static_malloc(2);
-*_FUNC__DECODEURL_INTEGER__P=0;
-}
-int16 *_FUNC__DECODEURL_INTEGER__A=NULL;
-if(_FUNC__DECODEURL_INTEGER__A==NULL){
-_FUNC__DECODEURL_INTEGER__A=(int16*)mem_static_malloc(2);
-*_FUNC__DECODEURL_INTEGER__A=0;
-}
-int32 fornext_value699;
-int32 fornext_finalvalue699;
-int32 fornext_step699;
-uint8 fornext_step_negative699;
-byte_element_struct *byte_element_700=NULL;
-if (!byte_element_700){
-if ((mem_static_pointer+=12)<mem_static_limit) byte_element_700=(byte_element_struct*)(mem_static_pointer-12); else byte_element_700=(byte_element_struct*)mem_static_malloc(12);
+int32 *_FUNC_TYPE2MEMTYPEVALUE_LONG_T1S=NULL;
+if(_FUNC_TYPE2MEMTYPEVALUE_LONG_T1S==NULL){
+_FUNC_TYPE2MEMTYPEVALUE_LONG_T1S=(int32*)mem_static_malloc(4);
+*_FUNC_TYPE2MEMTYPEVALUE_LONG_T1S=0;
 }

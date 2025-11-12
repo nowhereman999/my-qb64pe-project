@@ -1,5 +1,5 @@
-if(oldstr3851){
-if(oldstr3851->fixed)qbs_set(oldstr3851,_FUNC_ESCAPESTRING_STRING_S);
+if(oldstr3841){
+if(oldstr3841->fixed)qbs_set(oldstr3841,_FUNC_ESCAPESTRING_STRING_S);
 qbs_free(_FUNC_ESCAPESTRING_STRING_S);
 }
 qbs_free(_FUNC_ESCAPESTRING_STRING_ELE);

@@ -1,6 +1,0 @@
-if(oldstr6826){
-if(oldstr6826->fixed)qbs_set(oldstr6826,_FUNC_ISNUMBER_STRING___A);
-qbs_free(_FUNC_ISNUMBER_STRING___A);
-}
-qbs_free(_FUNC_ISNUMBER_STRING_A);
-qbs_free(_FUNC_ISNUMBER_STRING_SYMBOL);

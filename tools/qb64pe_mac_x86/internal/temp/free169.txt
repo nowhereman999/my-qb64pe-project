@@ -1,4 +1,4 @@
-if(oldstr4070){
-if(oldstr4070->fixed)qbs_set(oldstr4070,_SUB_WRITEBUFFERS_STRING_SBNAME);
+if(oldstr4060){
+if(oldstr4060->fixed)qbs_set(oldstr4060,_SUB_WRITEBUFFERS_STRING_SBNAME);
 qbs_free(_SUB_WRITEBUFFERS_STRING_SBNAME);
 }

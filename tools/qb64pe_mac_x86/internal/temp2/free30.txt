@@ -1,5 +1,0 @@
-if(oldstr3069){
-if(oldstr3069->fixed)qbs_set(oldstr3069,_FUNC_ISVALIDVARIABLE_STRING_A);
-qbs_free(_FUNC_ISVALIDVARIABLE_STRING_A);
-}
-qbs_free(_FUNC_ISVALIDVARIABLE_STRING_E);

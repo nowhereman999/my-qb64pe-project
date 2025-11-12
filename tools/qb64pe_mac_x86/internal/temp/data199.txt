@@ -1,14 +1,14 @@
 qbs *_FUNC_DWD_STRING_DWD=NULL;
 if (!_FUNC_DWD_STRING_DWD)_FUNC_DWD_STRING_DWD=qbs_new(0,0);
-qbs*oldstr4237=NULL;
+qbs*oldstr4227=NULL;
 if(_FUNC_DWD_STRING_EXP->tmp||_FUNC_DWD_STRING_EXP->fixed||_FUNC_DWD_STRING_EXP->readonly){
-oldstr4237=_FUNC_DWD_STRING_EXP;
-if (oldstr4237->cmem_descriptor){
-_FUNC_DWD_STRING_EXP=qbs_new_cmem(oldstr4237->len,0);
+oldstr4227=_FUNC_DWD_STRING_EXP;
+if (oldstr4227->cmem_descriptor){
+_FUNC_DWD_STRING_EXP=qbs_new_cmem(oldstr4227->len,0);
 }else{
-_FUNC_DWD_STRING_EXP=qbs_new(oldstr4237->len,0);
+_FUNC_DWD_STRING_EXP=qbs_new(oldstr4227->len,0);
 }
-memcpy(_FUNC_DWD_STRING_EXP->chr,oldstr4237->chr,oldstr4237->len);
+memcpy(_FUNC_DWD_STRING_EXP->chr,oldstr4227->chr,oldstr4227->len);
 }
 qbs *_FUNC_DWD_STRING_T=NULL;
 if (!_FUNC_DWD_STRING_T)_FUNC_DWD_STRING_T=qbs_new(0,0);
@@ -17,16 +17,16 @@ if(_FUNC_DWD_LONG_L==NULL){
 _FUNC_DWD_LONG_L=(int32*)mem_static_malloc(4);
 *_FUNC_DWD_LONG_L=0;
 }
-int64 fornext_value4239;
-int64 fornext_finalvalue4239;
-int64 fornext_step4239;
-uint8 fornext_step_negative4239;
+int64 fornext_value4229;
+int64 fornext_finalvalue4229;
+int64 fornext_step4229;
+uint8 fornext_step_negative4229;
 qbs *_FUNC_DWD_STRING_ELE=NULL;
 if (!_FUNC_DWD_STRING_ELE)_FUNC_DWD_STRING_ELE=qbs_new(0,0);
 qbs *_FUNC_DWD_STRING_NEXTELE=NULL;
 if (!_FUNC_DWD_STRING_NEXTELE)_FUNC_DWD_STRING_NEXTELE=qbs_new(0,0);
-int32 pass4240;
-int32 pass4241;
-int32 pass4242;
-int32 pass4243;
-int32 pass4244;
+int32 pass4230;
+int32 pass4231;
+int32 pass4232;
+int32 pass4233;
+int32 pass4234;

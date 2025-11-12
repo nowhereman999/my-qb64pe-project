@@ -13,14 +13,14 @@ if(_SUB_CONVBUFTOWINEOL_LONG_PO==NULL){
 _SUB_CONVBUFTOWINEOL_LONG_PO=(int32*)mem_static_malloc(4);
 *_SUB_CONVBUFTOWINEOL_LONG_PO=0;
 }
-int32 pass4034;
+int32 pass4024;
+int16 pass4025;
+int16 pass4027;
+int16 pass4028;
+int16 pass4029;
+int32 pass4030;
+int16 pass4031;
+int32 pass4032;
+int16 pass4033;
+int16 pass4034;
 int16 pass4035;
-int16 pass4037;
-int16 pass4038;
-int16 pass4039;
-int32 pass4040;
-int16 pass4041;
-int32 pass4042;
-int16 pass4043;
-int16 pass4044;
-int16 pass4045;

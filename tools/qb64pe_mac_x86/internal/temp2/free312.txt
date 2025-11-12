@@ -1,8 +1,0 @@
-if(oldstr6582){
-if(oldstr6582->fixed)qbs_set(oldstr6582,_FUNC_COUNTITEMS_STRING_SEARCHSTRING);
-qbs_free(_FUNC_COUNTITEMS_STRING_SEARCHSTRING);
-}
-if(oldstr6583){
-if(oldstr6583->fixed)qbs_set(oldstr6583,_FUNC_COUNTITEMS_STRING_ITEM);
-qbs_free(_FUNC_COUNTITEMS_STRING_ITEM);
-}

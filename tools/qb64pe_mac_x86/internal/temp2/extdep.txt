@@ -1,3 +1,0 @@
-INCL: /Users/glenhewlett/Downloads/New/internal/support/include/beforefirstline.bi
-INCL: /Users/glenhewlett/Downloads/New/internal/support/vwatch/vwatch_stub.bm
-INCL: /Users/glenhewlett/Downloads/New/internal/support/include/afterlastline.bm

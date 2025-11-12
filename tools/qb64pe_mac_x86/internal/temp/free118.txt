@@ -1,5 +1,5 @@
-if(oldstr3857){
-if(oldstr3857->fixed)qbs_set(oldstr3857,_FUNC_CREATEELEMENTSTRING_STRING_S);
+if(oldstr3847){
+if(oldstr3847->fixed)qbs_set(oldstr3847,_FUNC_CREATEELEMENTSTRING_STRING_S);
 qbs_free(_FUNC_CREATEELEMENTSTRING_STRING_S);
 }
 qbs_free(_FUNC_CREATEELEMENTSTRING_STRING_ELE);

@@ -1,4 +1,0 @@
-if(oldstr4065){
-if(oldstr4065->fixed)qbs_set(oldstr4065,_SUB_CLEARBUFFERS_STRING_SBNAME);
-qbs_free(_SUB_CLEARBUFFERS_STRING_SBNAME);
-}

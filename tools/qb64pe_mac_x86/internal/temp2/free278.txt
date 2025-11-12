@@ -1,4 +1,0 @@
-if(oldstr5912){
-if(oldstr5912->fixed)qbs_set(oldstr5912,_FUNC_IDENEWTXT_STRING_A);
-qbs_free(_FUNC_IDENEWTXT_STRING_A);
-}

@@ -1,5 +1,5 @@
-if(oldstr4305){
-if(oldstr4305->fixed)qbs_set(oldstr4305,_FUNC_TYPNAME2TYP_STRING_T2);
+if(oldstr4295){
+if(oldstr4295->fixed)qbs_set(oldstr4295,_FUNC_TYPNAME2TYP_STRING_T2);
 qbs_free(_FUNC_TYPNAME2TYP_STRING_T2);
 }
 qbs_free(_FUNC_TYPNAME2TYP_STRING_T);

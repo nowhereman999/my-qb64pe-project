@@ -1,5 +1,5 @@
-if(oldstr5670){
-if(oldstr5670->fixed)qbs_set(oldstr5670,_FUNC_PARSERANGE_STRING___TEXT);
+if(oldstr5656){
+if(oldstr5656->fixed)qbs_set(oldstr5656,_FUNC_PARSERANGE_STRING___TEXT);
 qbs_free(_FUNC_PARSERANGE_STRING___TEXT);
 }
 qbs_free(_FUNC_PARSERANGE_STRING_FILTER);

@@ -1,9 +1,9 @@
-if(oldstr5663){
-if(oldstr5663->fixed)qbs_set(oldstr5663,_FUNC_EXPANDARRAY_STRING___INDEXES);
+if(oldstr5649){
+if(oldstr5649->fixed)qbs_set(oldstr5649,_FUNC_EXPANDARRAY_STRING___INDEXES);
 qbs_free(_FUNC_EXPANDARRAY_STRING___INDEXES);
 }
-if(oldstr5664){
-if(oldstr5664->fixed)qbs_set(oldstr5664,_FUNC_EXPANDARRAY_STRING___PATH);
+if(oldstr5650){
+if(oldstr5650->fixed)qbs_set(oldstr5650,_FUNC_EXPANDARRAY_STRING___PATH);
 qbs_free(_FUNC_EXPANDARRAY_STRING___PATH);
 }
 qbs_free(_FUNC_EXPANDARRAY_STRING_INDEXES);

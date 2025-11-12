@@ -1,4 +1,4 @@
-if(oldstr4223){
-if(oldstr4223->fixed)qbs_set(oldstr4223,_SUB_FIXUPERRORMESSAGE_STRING_OP);
+if(oldstr4213){
+if(oldstr4213->fixed)qbs_set(oldstr4213,_SUB_FIXUPERRORMESSAGE_STRING_OP);
 qbs_free(_SUB_FIXUPERRORMESSAGE_STRING_OP);
 }

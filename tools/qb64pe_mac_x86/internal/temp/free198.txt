@@ -1,5 +1,5 @@
-if(oldstr4225){
-if(oldstr4225->fixed)qbs_set(oldstr4225,_FUNC_EVALUATEFUNCTION_STRING_ARGS);
+if(oldstr4215){
+if(oldstr4215->fixed)qbs_set(oldstr4215,_FUNC_EVALUATEFUNCTION_STRING_ARGS);
 qbs_free(_FUNC_EVALUATEFUNCTION_STRING_ARGS);
 }
 qbs_free(_FUNC_EVALUATEFUNCTION_STRING_NSTR);

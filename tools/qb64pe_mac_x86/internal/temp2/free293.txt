@@ -1,9 +1,0 @@
-if(oldstr6215){
-if(oldstr6215->fixed)qbs_set(oldstr6215,_FUNC_IDEZCHANGEPATH_STRING_PATH);
-qbs_free(_FUNC_IDEZCHANGEPATH_STRING_PATH);
-}
-if(oldstr6216){
-if(oldstr6216->fixed)qbs_set(oldstr6216,_FUNC_IDEZCHANGEPATH_STRING_NEWPATH);
-qbs_free(_FUNC_IDEZCHANGEPATH_STRING_NEWPATH);
-}
-qbs_free(_FUNC_IDEZCHANGEPATH_STRING_A);
