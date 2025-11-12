@@ -1,0 +1,68 @@
+name: Build QB64-PE v4.1 for Linux x86_64 (No IDE Launch)
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libgl1-mesa-dev libglu1-mesa-dev \
+                                 libpulse-dev libasound2-dev libx11-dev \
+                                 libxpm-dev libxft-dev libxext-dev \
+                                 libxi-dev libxrandr-dev libxinerama-dev \
+                                 libxcursor-dev libxss-dev
+
+      - name: Clone QB64-PE source
+        run: |
+          git clone https://github.com/QB64-Phoenix-Edition/QB64pe.git qb64pe-source
+
+      - name: Checkout version 4.1.0
+        run: |
+          cd qb64pe-source
+          git checkout v4.1.0
+
+      - name: Build QB64-PE – headless (no IDE launch)
+        run: |
+          cd qb64pe-source
+          chmod +x ./setup_linux.sh
+          ./setup_linux.sh nolaunch   # nolaunch works the same way as on macOS
+
+      - name: Verify binary was built
+        run: |
+          [ -f "qb64pe-source/qb64pe" ] && echo "qb64pe built successfully!" || exit 1
+
+      - name: Package for repo
+        run: |
+          mkdir -p qb64pe_linux_x86_64
+          cp qb64pe-source/qb64pe qb64pe_linux_x86_64/
+          cp -R qb64pe-source/internal qb64pe_linux_x86_64/
+          cp qb64pe-source/Makefile qb64pe_linux_x86_64/
+          cp -R qb64pe-source/source qb64pe_linux_x86_64/
+          cp -R qb64pe-source/lib qb64pe_linux_x86_64/ 2>/dev/null || true
+
+      - name: Create zip
+        run: |
+          zip -r qb64pe_linux_x86_64_v4.1.zip qb64pe_linux_x86_64
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: qb64pe-linux-x86_64-no-ide-v4.1
+          path: qb64pe_linux_x86_64_v4.1.zip
+          retention-days: 30
+
+      - name: Job summary
+        run: |
+          echo "## QB64-PE v4.1 Linux x86_64 Built (No IDE Launch)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Used built-in **nolaunch** parameter – no patching needed!" >> $GITHUB_STEP_SUMMARY
+          echo "IDE will **never** start." >> $GITHUB_STEP_SUMMARY
+          echo "Download **qb64pe_linux_x86_64_v4.1.zip** from Artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "Extract to: **tools/qb64pe_linux_x86_64/**" >> $GITHUB_STEP_SUMMARY
+          echo "Then commit and push." >> $GITHUB_STEP_SUMMARY
