@@ -61,9 +61,7 @@ jobs:
             $files = $filesRel | ForEach-Object { Join-Path $env:GITHUB_WORKSPACE $_ }
           } else {
             $root = Join-Path $env:GITHUB_WORKSPACE 'BASIC-To-6809_Source_Code'
-            # Only top-level .bas/.BAS in that folder
             $files = Get-ChildItem -Path $root -File -Filter *.bas | ForEach-Object { $_.FullName }
-            # Optionally include IDE/SDECB.bas
             $sd1 = Join-Path $root 'IDE\SDECB.bas'
             $sd2 = Join-Path $root 'IDE\SDECB.BAS'
             if (Test-Path $sd1) { $files += $sd1 }
@@ -87,29 +85,49 @@ jobs:
           foreach ($abs in $files) {
             if (-not ($abs -match '\.[bB][aA][sS]$')) { continue }
             $base = [System.IO.Path]::GetFileNameWithoutExtension($abs)
-            $outExe = Join-Path $env:ARTIFACT_DIR ($base + '.exe')
+            $outName = "$base.exe"                                    # output name only (no path)
+            $outAbs  = Join-Path $env:ARTIFACT_DIR $outName            # final destination
 
-            Write-Output "Compiling: $(Split-Path $abs -Leaf) → $($base).exe"
+            Write-Output "Compiling: $(Split-Path $abs -Leaf) → $outName"
 
             # Always run qb64pe from its own directory so .\internal\temp exists there
             Push-Location $env:QB64PE_DIR
-            & ".\qb64pe.exe" -x "$abs" -o "$outExe"
+
+            # Capture stdout/stderr so we have *some* diagnostics even if compilelog.txt isn't created
+            $cmd = ".\qb64pe.exe -x `"$abs`" -o `"$outName`""
+            Write-Output ">> $cmd"
+            $compileOutput = & cmd /c $cmd 2>&1
             $code = $LASTEXITCODE
+            if ($compileOutput) { $compileOutput | Out-Host }
+
             Pop-Location
 
             if ($code -ne 0) {
               Write-Output "=== COMPILATION ERROR ($base) ==="
-              # Try both possible log locations
-              $log1 = Join-Path $env:QB64PE_DIR 'internal\temp\compilelog.txt'
-              $log2 = Join-Path (Split-Path $abs -Parent) 'internal\temp\compilelog.txt'
-              if (Test-Path $log1)      { Get-Content $log1 | Write-Output }
-              elseif (Test-Path $log2)  { Get-Content $log2 | Write-Output }
-              else                      { Write-Output "compilelog.txt not found in either location." }
+
+              # Dump any logs QB64PE may have written
+              $logRoot = Join-Path $env:QB64PE_DIR 'internal\temp'
+              if (Test-Path $logRoot) {
+                Write-Output "-- internal\\temp listing --"
+                Get-ChildItem -Path $logRoot -Recurse -File | Select-Object FullName, Length, LastWriteTime | Format-Table | Out-String | Write-Output
+                Write-Output "-- *.txt contents (if small) --"
+                Get-ChildItem -Path $logRoot -Recurse -File -Filter *.txt | ForEach-Object {
+                  Write-Output "----- $($_.FullName) -----"
+                  try { Get-Content $_.FullName | Write-Output } catch { Write-Output "(could not read)" }
+                }
+              } else {
+                Write-Output "(no internal\\temp directory yet)"
+              }
+
               Write-Output "================================"
               exit 1
             }
 
-            $executables.Add([System.IO.Path]::GetFileName($outExe)) | Out-Null
+            # Copy result from QB64PE_DIR to artifacts
+            Copy-Item (Join-Path $env:QB64PE_DIR $outName) $outAbs -Force
+            Remove-Item (Join-Path $env:QB64PE_DIR $outName) -ErrorAction SilentlyContinue
+
+            $executables.Add($outName) | Out-Null
             $count++
           }
 
