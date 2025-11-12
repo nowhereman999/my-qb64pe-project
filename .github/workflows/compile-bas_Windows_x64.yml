@@ -133,7 +133,7 @@ jobs:
             $base = [IO.Path]::GetFileNameWithoutExtension($name)
             Set-Location "$env:GITHUB_WORKSPACE\$dir"
             Write-Output "Compiling $name -> $base.exe"
-            & $QB64PE -x "$name" -o "$base.exe"
+            & $QB64PE -c "$name" -o "$base.exe"
             if ($LASTEXITCODE -ne 0) {
               $log = "$env:GITHUB_WORKSPACE\tools\qb64pe_Windows_x64\internal\temp\compilelog.txt"
               Write-Output "=== COMPILATION ERROR ==="
