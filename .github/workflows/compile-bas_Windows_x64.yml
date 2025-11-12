@@ -56,47 +56,62 @@ jobs:
           )
           echo QB64-PE found.
 
-      - name: Override internal compiler
+      - name: Override internal compiler with relative paths
         shell: cmd
         run: |
-          set "INTERNAL=%~dp0tools\qb64pe_Windows_x64\internal\c\c_compiler"
+          set "INTERNAL=%GITHUB_WORKSPACE%\tools\qb64pe_Windows_x64\internal\c\c_compiler"
           rmdir /s /q "%INTERNAL%" 2>nul
           mkdir "%INTERNAL%\bin" >nul
-          for /f "delims=" %%G in ('where gcc.exe') do set "GCC=%%G"
-          for /f "delims=" %%X in ('where g++.exe') do set "GPP=%%X"
-          for /f "delims=" %%M in ('where make.exe') do set "MAKE=%%M"
-          (
-            echo @echo off
-            echo "%GCC%" %%*
-          ) > "%INTERNAL%\bin\gcc.exe"
-          (
-            echo @echo off
-            echo "%GPP%" %%*
-          ) > "%INTERNAL%\bin\g++.exe"
-          (
-            echo @echo off
-            echo "%MAKE%" %%*
-          ) > "%INTERNAL%\bin\make.exe"
-          copy "%MAKE%" "%INTERNAL%\bin\mingw32-make.exe" /y >nul
-          set "BINDIR=%GCC:~0,-8%"
-          for %%D in (libgcc_s_seh-1.dll libstdc++-6.dll libwinpthread-1.dll) do (
-            if exist "%BINDIR%%%D" copy "%BINDIR%%%D" "%INTERNAL%\bin\" /y >nul
+
+          for /f "delims=" %%G in ('where gcc.exe') do set "REAL_GCC=%%G"
+          for /f "delims=" %%X in ('where g++.exe') do set "REAL_GPP=%%X"
+          for /f "delims=" %%M in ('where make.exe') do set "REAL_MAKE=%%M"
+
+          if not defined REAL_GCC (
+            echo gcc not found
+            exit 1
           )
-          echo Compiler override complete.
+
+          rem Calculate relative path from internal\bin to real bin
+          set "REAL_BINDIR=%REAL_GCC:~0,-8%"
+          set "REL_PATH=..\..\..\..\%REAL_BINDIR:C:\=C:\%"
+
+          rem Fix drive letter case and slashes
+          set "REL_PATH=%REL_PATH:\=\\%"
+
+          (
+            echo @echo off
+            echo "%REAL_BINDIR%gcc.exe" %%*
+          ) > "%INTERNAL%\bin\gcc.exe"
+
+          (
+            echo @echo off
+            echo "%REAL_BINDIR%g++.exe" %%*
+          ) > "%INTERNAL%\bin\g++.exe"
+
+          (
+            echo @echo off
+            echo "%REAL_BINDIR%make.exe" %%*
+          ) > "%INTERNAL%\bin\make.exe"
+
+          copy "%REAL_MAKE%" "%INTERNAL%\bin\mingw32-make.exe" /y >nul
+
+          for %%D in (libgcc_s_seh-1.dll libstdc++-6.dll libwinpthread-1.dll) do (
+            if exist "%REAL_BINDIR%%%D" copy "%REAL_BINDIR%%%D" "%INTERNAL%\bin\" /y >nul
+          )
+          echo Compiler override complete (using absolute paths to real MinGW)
 
       - name: Create artifacts folder
         shell: cmd
         run: mkdir "%ARTIFACTS%" >nul
 
-      - name: Compile all .bas files (pure CMD - FIXED)
+      - name: Compile all .bas files
         id: compile
         shell: cmd
         run: |
           set "ROOT=%GITHUB_WORKSPACE%\BASIC-To-6809_Source_Code"
           set "EXE_LIST="
           set "COUNT=0"
-
-          rem Use a temp file for deduplication (fixes delayed expansion bug)
           set "SEEN=%TEMP%\qb64pe_seen.txt"
           if exist "%SEEN%" del "%SEEN%"
 
@@ -106,9 +121,6 @@ jobs:
           )
 
           for /r "%ROOT%" %%F in (*.bas *.BAS) do call :compile_one "%%F"
-          for %%F in ("%ROOT%\IDE\SDECB.bas" "%ROOT%\IDE\SDECB.BAS") do (
-            if exist "%%F" call :compile_one "%%F"
-          )
 
           :done
           if exist "%SEEN%" del "%SEEN%"
@@ -118,21 +130,19 @@ jobs:
 
           :compile_one
           set "FULL=%~f1"
-          set "DIR=%~dp1"
-          set "FILE=%~nx1"
-          set "BASE=%~n1"
-
-          rem Skip if already compiled (using temp file)
           if exist "%SEEN%" findstr /i "^%FULL%$"< "%SEEN%" >nul && exit /b
           echo %FULL%>> "%SEEN%"
 
+          set "DIR=%~dp1"
+          set "FILE=%~nx1"
+          set "BASE=%~n1"
           pushd "%DIR%"
           echo Compiling %FILE% -^> %BASE%.exe
           call "%QB64PE%" -x "%FILE%" -o "%BASE%.exe"
           if errorlevel 1 (
             echo === COMPILATION ERROR in %FILE% ===
-            if exist "%~dp0tools\qb64pe_Windows_x64\internal\temp\compilelog.txt" (
-              type "%~dp0tools\qb64pe_Windows_x64\internal\temp\compilelog.txt"
+            if exist "%GITHUB_WORKSPACE%\tools\qb64pe_Windows_x64\internal\temp\compilelog.txt" (
+              type "%GITHUB_WORKSPACE%\tools\qb64pe_Windows_x64\internal\temp\compilelog.txt"
             )
             popd
             exit /b 1
