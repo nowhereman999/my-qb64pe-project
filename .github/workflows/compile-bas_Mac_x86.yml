@@ -72,9 +72,9 @@ jobs:
             cd "$full_dir"
             echo "Compiling (in $rel_dir): $filename → $base"
             if ! "$QB64PE_DIR/qb64pe" -x "$filename" -o "$base"; then
-              if [ -f "./internal/temp/compilelog.txt" ]; then
+              if [ -f "$GITHUB_WORKSPACE/tools/qb64pe_mac_x86/internal/temp/compilelog.txt" ]; then
                 echo "Compilation failed. Contents of ./internal/temp/compilelog.txt:"
-                cat ./internal/temp/compilelog.txt
+                cat $GITHUB_WORKSPACE/tools/qb64pe_mac_x86/internal/temp/compilelog.txt
               else
                 echo "Compilation failed, but compilelog.txt not found."
               fi
