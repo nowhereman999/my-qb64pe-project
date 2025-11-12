@@ -56,45 +56,38 @@ jobs:
           )
           echo QB64-PE found.
 
-      - name: Override internal compiler (FIXED - CAPTURE FIRST LINE ONLY)
+      - name: Override internal compiler (COPY EXES - FIXED)
         shell: cmd
         run: |
           set "INTERNAL=%GITHUB_WORKSPACE%\tools\qb64pe_Windows_x64\internal\c\c_compiler"
           rmdir /s /q "%INTERNAL%" 2>nul
           mkdir "%INTERNAL%\bin" >nul
 
-          rem Capture FIRST gcc.exe only (critical!)
-          for /f "delims=" %%G in ('where gcc.exe 2^>nul ^| findstr /i /b /c:"C:\"') do set "REAL_GCC=%%G" & goto :found
-          :found
-          if not defined REAL_GCC (
-            echo ERROR: gcc.exe not found in PATH
-            exit 1
-          )
+          for /f "delims=" %%G in ('where gcc.exe') do set "REAL_GCC=%%G" & goto :next1
+          :next1
+          if not defined REAL_GCC (echo gcc not found & exit 1)
+
+          for /f "delims=" %%X in ('where g++.exe') do set "REAL_GPP=%%X" & goto :next2
+          :next2
+
+          set "REAL_MAKE="
+          for /f "delims=" %%M in ('where mingw32-make.exe 2>nul') do set "REAL_MAKE=%%M" & goto :next3
+          :next3
+          if not defined REAL_MAKE for /f "delims=" %%M in ('where make.exe 2>nul') do set "REAL_MAKE=%%M" & goto :next4
+          :next4
+          if not defined REAL_MAKE (echo make not found & exit 1)
 
           set "REAL_BINDIR=%REAL_GCC:~0,-9%"
 
-          (
-            echo @echo off
-            echo "%REAL_BINDIR%\gcc.exe" %%*
-          ) > "%INTERNAL%\bin\gcc.exe"
-
-          (
-            echo @echo off
-            echo "%REAL_BINDIR%\g++.exe" %%*
-          ) > "%INTERNAL%\bin\g++.exe"
-
-          (
-            echo @echo off
-            echo "%REAL_BINDIR%\make.exe" %%*
-          ) > "%INTERNAL%\bin\make.exe"
-
-          copy "%REAL_BINDIR%\make.exe" "%INTERNAL%\bin\mingw32-make.exe" /y >nul
+          copy "%REAL_GCC%" "%INTERNAL%\bin\gcc.exe" /y >nul
+          copy "%REAL_GPP%" "%INTERNAL%\bin\g++.exe" /y >nul
+          copy "%REAL_MAKE%" "%INTERNAL%\bin\mingw32-make.exe" /y >nul
 
           for %%D in (libgcc_s_seh-1.dll libstdc++-6.dll libwinpthread-1.dll) do (
-            if exist "%REAL_BINDIR%\%%D" copy "%REAL_BINDIR%\%%D" "%INTERNAL%\bin\" /y >nul
+            copy "%REAL_BINDIR%\%%D" "%INTERNAL%\bin\%%D" /y >nul 2>nul
           )
 
-          echo Compiler override complete - using %REAL_BINDIR%
+          echo Compiler override complete
 
       - name: Create artifacts folder
         shell: cmd
@@ -135,8 +128,7 @@ jobs:
           pushd "%DIR%"
           echo Compiling %FILE% -^> %BASE%.exe
 
-          rem FINAL: No hang, no output, clean exit
-          <nul call "%QB64PE%" -x "%FILE%" -o "%BASE%.exe" >nul 2>&1
+          call "%QB64PE%" -x "%FILE%" -o "%BASE%.exe" < nul
 
           if errorlevel 1 (
             echo === COMPILATION FAILED: %FILE% ===
