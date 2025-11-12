@@ -30,7 +30,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install MinGW (Chocolatey)
+      - name: Install MinGW
         shell: cmd
         run: choco install mingw -y --no-progress
 
@@ -88,30 +88,30 @@ jobs:
         shell: cmd
         run: mkdir "%ARTIFACTS%" >nul
 
-      - name: Compile all .bas files (pure CMD - fixed)
+      - name: Compile all .bas files (pure CMD - FIXED)
         id: compile
         shell: cmd
         run: |
           set "ROOT=%GITHUB_WORKSPACE%\BASIC-To-6809_Source_Code"
           set "EXE_LIST="
           set "COUNT=0"
-          set "COMPILED="
 
-          :: Manual input override
+          rem Use a temp file for deduplication (fixes delayed expansion bug)
+          set "SEEN=%TEMP%\qb64pe_seen.txt"
+          if exist "%SEEN%" del "%SEEN%"
+
           if defined INPUT_BAS_PATHS (
             for %%F in (%INPUT_BAS_PATHS%) do call :compile_one "%%F"
             goto :done
           )
 
-          :: Auto-find ALL .bas/.BAS files (including IDE subfolder)
           for /r "%ROOT%" %%F in (*.bas *.BAS) do call :compile_one "%%F"
-
-          :: Also ensure SDECB is compiled (in case it wasn't picked up)
           for %%F in ("%ROOT%\IDE\SDECB.bas" "%ROOT%\IDE\SDECB.BAS") do (
             if exist "%%F" call :compile_one "%%F"
           )
 
           :done
+          if exist "%SEEN%" del "%SEEN%"
           echo executables=%EXE_LIST:~1%>> "%GITHUB_OUTPUT%"
           echo compiled_count=%COUNT%>> "%GITHUB_OUTPUT%"
           exit /b
@@ -122,9 +122,9 @@ jobs:
           set "FILE=%~nx1"
           set "BASE=%~n1"
 
-          :: Skip if already compiled
-          echo %COMPILED% | findstr /i "%FULL%" >nul && exit /b
-          set "COMPILED=%COMPILED% %FULL%"
+          rem Skip if already compiled (using temp file)
+          if exist "%SEEN%" findstr /i "^%FULL%$"< "%SEEN%" >nul && exit /b
+          echo %FULL%>> "%SEEN%"
 
           pushd "%DIR%"
           echo Compiling %FILE% -^> %BASE%.exe
