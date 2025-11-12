@@ -16,7 +16,7 @@ on:
   workflow_dispatch:
     inputs:
       bas_paths:
-        description: 'Comma-separated .bas file paths (relative to repo root)'
+        description: 'Comma-separated .bas file paths'
         required: false
         type: string
 
@@ -51,12 +51,12 @@ jobs:
         shell: cmd
         run: |
           if not exist "%QB64PE%" (
-            echo qb64pe.exe missing! Commit tools/qb64pe_Windows_x64/
+            echo qb64pe.exe missing!
             exit 1
           )
           echo QB64-PE found.
 
-      - name: Override internal compiler with relative paths
+      - name: Override internal compiler (ABSOLUTE PATHS - FIXED)
         shell: cmd
         run: |
           set "INTERNAL=%GITHUB_WORKSPACE%\tools\qb64pe_Windows_x64\internal\c\c_compiler"
@@ -72,12 +72,8 @@ jobs:
             exit 1
           )
 
-          rem Calculate relative path from internal\bin to real bin
+          rem Use ABSOLUTE PATH — NO RELATIVE PATH HACKS
           set "REAL_BINDIR=%REAL_GCC:~0,-8%"
-          set "REL_PATH=..\..\..\..\%REAL_BINDIR:C:\=C:\%"
-
-          rem Fix drive letter case and slashes
-          set "REL_PATH=%REL_PATH:\=\\%"
 
           (
             echo @echo off
@@ -99,13 +95,14 @@ jobs:
           for %%D in (libgcc_s_seh-1.dll libstdc++-6.dll libwinpthread-1.dll) do (
             if exist "%REAL_BINDIR%%%D" copy "%REAL_BINDIR%%%D" "%INTERNAL%\bin\" /y >nul
           )
-          echo Compiler override complete (using absolute paths to real MinGW)
+
+          echo Compiler override complete - using %REAL_BINDIR%
 
       - name: Create artifacts folder
         shell: cmd
         run: mkdir "%ARTIFACTS%" >nul
 
-      - name: Compile all .bas files
+      - name: Compile .bas files (CMD only)
         id: compile
         shell: cmd
         run: |
@@ -113,7 +110,7 @@ jobs:
           set "EXE_LIST="
           set "COUNT=0"
           set "SEEN=%TEMP%\qb64pe_seen.txt"
-          if exist "%SEEN%" del "%SEEN%"
+          >"%SEEN%" rem clear
 
           if defined INPUT_BAS_PATHS (
             for %%F in (%INPUT_BAS_PATHS%) do call :compile_one "%%F"
@@ -130,23 +127,28 @@ jobs:
 
           :compile_one
           set "FULL=%~f1"
-          if exist "%SEEN%" findstr /i "^%FULL%$"< "%SEEN%" >nul && exit /b
+          findstr /i "^%FULL%$"< "%SEEN%" >nul && exit /b
           echo %FULL%>> "%SEEN%"
 
           set "DIR=%~dp1"
           set "FILE=%~nx1"
           set "BASE=%~n1"
+
           pushd "%DIR%"
           echo Compiling %FILE% -^> %BASE%.exe
           call "%QB64PE%" -x "%FILE%" -o "%BASE%.exe"
+
           if errorlevel 1 (
-            echo === COMPILATION ERROR in %FILE% ===
+            echo === COMPILATION FAILED: %FILE% ===
             if exist "%GITHUB_WORKSPACE%\tools\qb64pe_Windows_x64\internal\temp\compilelog.txt" (
+              echo --- compilelog.txt ---
               type "%GITHUB_WORKSPACE%\tools\qb64pe_Windows_x64\internal\temp\compilelog.txt"
+              echo --- end ---
             )
             popd
             exit /b 1
           )
+
           copy "%BASE%.exe" "%ARTIFACTS%\%BASE%.exe" /y >nul
           del "%BASE%.exe" 2>nul
           set "EXE_LIST=%EXE_LIST% %BASE%.exe"
@@ -154,7 +156,7 @@ jobs:
           popd
           exit /b
 
-      - name: Create zip archive
+      - name: Create zip
         if: steps.compile.outputs.compiled_count > 0
         shell: cmd
         run: powershell -Command "Compress-Archive -Path '%ARTIFACTS%\*.exe' -DestinationPath qb64pe_Windows_x64_executables.zip -Force"
@@ -167,15 +169,14 @@ jobs:
           path: qb64pe_Windows_x64_executables.zip
           retention-days: 30
 
-      - name: Job summary
+      - name: Summary
         if: success() && steps.compile.outputs.compiled_count > 0
         shell: cmd
         run: |
-          echo ## QB64-PE Windows x64 Build Complete>> "%GITHUB_STEP_SUMMARY%"
+          echo ## QB64-PE Build Complete>> "%GITHUB_STEP_SUMMARY%"
           echo.>> "%GITHUB_STEP_SUMMARY%"
-          echo Compiled **${{ steps.compile.outputs.compiled_count }}** program(s):>> "%GITHUB_STEP_SUMMARY%"
+          echo Compiled **${{ steps.compile.outputs.compiled_count }}** programs:>> "%GITHUB_STEP_SUMMARY%"
           echo.>> "%GITHUB_STEP_SUMMARY%"
           for %%E in (${{ steps.compile.outputs.executables }}) do echo - `%%E`>> "%GITHUB_STEP_SUMMARY%"
           echo.>> "%GITHUB_STEP_SUMMARY%"
-          echo Download **qb64pe_Windows_x64_executables.zip** from Artifacts>> "%GITHUB_STEP_SUMMARY%"
-          echo *Native 64-bit Windows .exe files (no dependencies)*>> "%GITHUB_STEP_SUMMARY%"
+          echo Download **qb64pe_Windows_x64_executables.zip**>> "%GITHUB_STEP_SUMMARY%"
