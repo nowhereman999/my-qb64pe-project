@@ -26,7 +26,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install QB64-PE runtime dependencies
+      - name: Install ALL QB64-PE runtime dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -36,17 +36,22 @@ jobs:
             libxcb1 \
             libpng16-16 \
             libcurl4 \
-            libpthread-stubs0-dev
+            libasound2 \
+            libpthread-stubs0-dev \
+            libxi6 \
+            libxrender1 \
+            libxext6 \
+            libxfixes3 \
+            libxrandr2 \
+            libxinerama1 \
+            libxcursor1 \
+            libxss1
 
       - name: Verify QB64-PE Linux x86_64 setup
         run: |
           QB64PE_DIR="$GITHUB_WORKSPACE/tools/qb64pe_Linux_x86_64"
           echo "Looking for QB64-PE in: $QB64PE_DIR"
-          if [ ! -d "$QB64PE_DIR" ]; then
-            echo "ERROR: Directory $QB64PE_DIR does not exist!"
-            echo "Make sure tools/qb64pe_Linux_x86_64 is committed."
-            exit 1
-          fi
+          [ -d "$QB64PE_DIR" ] || { echo "ERROR: $QB64PE_DIR missing! Commit the folder."; exit 1; }
           cd "$QB64PE_DIR"
           [ -f "./qb64pe" ] || { echo "qb64pe missing!"; exit 1; }
           [ -d "./internal" ] || { echo "internal/ missing!"; exit 1; }
@@ -55,8 +60,7 @@ jobs:
 
       - name: Make qb64pe executable
         run: |
-          QB64PE_DIR="$GITHUB_WORKSPACE/tools/qb64pe_Linux_x86_64"
-          chmod +x "$QB64PE_DIR/qb64pe"
+          chmod +x "$GITHUB_WORKSPACE/tools/qb64pe_Linux_x86_64/qb64pe"
 
       - name: Compile selected .bas files
         id: compile
@@ -65,6 +69,7 @@ jobs:
           ARTIFACT_DIR="$GITHUB_WORKSPACE/artifacts"
           mkdir -p "$ARTIFACT_DIR"
 
+          # === File discovery logic (unchanged) ===
           if [ -n "${{ inputs.bas_paths }}" ]; then
             IFS=',' read -r -a FILES <<< "${{ inputs.bas_paths }}"
           else
@@ -92,9 +97,7 @@ jobs:
           IFS=' ' read -r -a FILE_ARRAY <<< "$FILES"
           UNIQUE=""
           for f in "${FILE_ARRAY[@]}"; do
-            if [[ "$UNIQUE" != *" $f "* ]]; then
-              UNIQUE="$UNIQUE $f "
-            fi
+            [[ "$UNIQUE" != *" $f "* ]] && UNIQUE="$UNIQUE $f "
           done
           UNIQUE="${UNIQUE% }"
           IFS=' ' read -r -a FILE_ARRAY <<< "$UNIQUE"
@@ -126,12 +129,7 @@ jobs:
             if ! "$QB64PE_DIR/qb64pe" -x "$filename" -o "$base"; then
               LOG_PATH="$QB64PE_DIR/internal/temp/compilelog.txt"
               echo "=== COMPILATION ERROR ==="
-              if [ -f "$LOG_PATH" ]; then
-                echo "Contents of $LOG_PATH:"
-                cat "$LOG_PATH"
-              else
-                echo "compilelog.txt not found."
-              fi
+              [ -f "$LOG_PATH" ] && cat "$LOG_PATH" || echo "compilelog.txt not found."
               echo "========================"
               exit 1
             fi
@@ -172,5 +170,4 @@ jobs:
           done
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Download the zip from **Artifacts** below" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
           echo "*These are native Linux x86_64 executables (no extension).*" >> $GITHUB_STEP_SUMMARY
