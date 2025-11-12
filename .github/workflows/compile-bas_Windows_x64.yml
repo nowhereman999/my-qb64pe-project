@@ -64,13 +64,11 @@ jobs:
           $QB64PE_DIR = "$env:GITHUB_WORKSPACE\tools\qb64pe_Windows_x64"
           $internal = "$QB64PE_DIR\internal\c\c_compiler"
           Remove-Item -Recurse -Force $internal -ErrorAction SilentlyContinue
-          New-Item -ItemType Directory -Force -Path $internal\bin | Out-Null
-          # Find real gcc/g++ path
+          New-Item -ItemType Directory -Force -Path "$internal\bin" | Out-Null
           $gccPath = (Get-Command gcc.exe).Path
           $gppPath = (Get-Command g++.exe).Path
           $makePath = (Get-Command make.exe).Path
           if (-not $gccPath) { Write-Error "gcc not found"; exit 1 }
-          # Create wrapper batch files (QB64-PE expects .exe directly)
           @"
 @echo off
 "$gccPath" %*
@@ -83,7 +81,6 @@ jobs:
 @echo off
 "$makePath" %*
 "@ | Out-File -Encoding ASCII "$internal\bin\make.exe"
-          # Also copy required DLLs (critical!)
           $dlls = @("libgcc_s_seh-1.dll", "libstdc++-6.dll", "libwinpthread-1.dll")
           foreach ($dll in $dlls) {
             $src = Join-Path (Split-Path $gccPath) $dll
