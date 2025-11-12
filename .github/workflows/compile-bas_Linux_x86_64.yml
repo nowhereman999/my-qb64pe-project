@@ -26,13 +26,25 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Debug – list tools folder
+        run: |
+          echo "Contents of /tools:"
+          ls -R "$GITHUB_WORKSPACE/tools" || echo "tools/ does not exist yet"
+
       - name: Verify QB64-PE Linux x86_64 setup
         run: |
           QB64PE_DIR="$GITHUB_WORKSPACE/tools/qb64pe_Linux_x86_64"
+          echo "Looking for QB64-PE in: $QB64PE_DIR"
+          if [ ! -d "$QB64PE_DIR" ]; then
+            echo "ERROR: Directory $QB64PE_DIR does not exist!"
+            echo "Make sure tools/qb64pe_Linux_x86_64 (with qb64pe, internal/, Makefile, etc.) is committed to the repo."
+            exit 1
+          fi
           cd "$QB64PE_DIR"
           [ -f "./qb64pe" ] || { echo "qb64pe missing!"; exit 1; }
           [ -d "./internal" ] || { echo "internal/ missing!"; exit 1; }
           [ -f "./Makefile" ] || { echo "Makefile missing!"; exit 1; }
+          echo "QB64-PE setup verified successfully."
 
       - name: Make qb64pe executable
         run: |
@@ -49,7 +61,6 @@ jobs:
           if [ -n "${{ inputs.bas_paths }}" ]; then
             IFS=',' read -r -a FILES <<< "${{ inputs.bas_paths }}"
           else
-            # --- Bash-compatible way to get root .bas files ---
             ROOT_DIR="$GITHUB_WORKSPACE/BASIC-To-6809_Source_Code"
             ROOT_FILES=""
             for f in "$ROOT_DIR"/*; do
@@ -58,9 +69,8 @@ jobs:
                 ROOT_FILES="$ROOT_FILES $rel_path"
               fi
             done
-            ROOT_FILES="${ROOT_FILES# }" # trim leading space
+            ROOT_FILES="${ROOT_FILES# }"
 
-            # --- Add SDECB.bas (only once, case-insensitive) ---
             SDECB_PATH=""
             if [ -f "$ROOT_DIR/IDE/SDECB.bas" ]; then
               SDECB_PATH="BASIC-To-6809_Source_Code/IDE/SDECB.bas"
@@ -68,22 +78,19 @@ jobs:
               SDECB_PATH="BASIC-To-6809_Source_Code/IDE/SDECB.BAS"
             fi
 
-            # Combine
             FILES="$ROOT_FILES"
             [ -n "$SDECB_PATH" ] && FILES="$FILES $SDECB_PATH"
           fi
 
-          # Convert space-separated string to array
           IFS=' ' read -r -a FILE_ARRAY <<< "$FILES"
 
-          # Remove duplicates
           UNIQUE=""
           for f in "${FILE_ARRAY[@]}"; do
             if [[ "$UNIQUE" != *" $f "* ]]; then
               UNIQUE="$UNIQUE $f "
             fi
           done
-          UNIQUE="${UNIQUE% }" # trim trailing space
+          UNIQUE="${UNIQUE% }"
           IFS=' ' read -r -a FILE_ARRAY <<< "$UNIQUE"
 
           if [ ${#FILE_ARRAY[@]} -eq 0 ]; then
@@ -123,7 +130,6 @@ jobs:
               exit 1
             fi
 
-            # Linux executable has no extension
             cp "$base" "$ARTIFACT_DIR/$base"
             rm -f "$base"
             EXECUTABLES="$EXECUTABLES $base"
