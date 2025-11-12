@@ -21,30 +21,32 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest  # Now Ubuntu 24.04 – works perfectly with the fixes below
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install QB64-PE runtime dependencies (Ubuntu 24.04 compatible)
+      - name: Install QB64-PE build + runtime dependencies (Ubuntu 24.04)
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            libglu1-mesa \
-            libgl1 \
-            libx11-6 \
-            libxcb1 \
+            build-essential \
+            g++ \
+            make \
+            libgl1-mesa-dev \
+            libglu1-mesa-dev \
+            libasound2t64 \
             libpng16-16 \
             libcurl4 \
-            libasound2t64 \
-            libxi6 \
-            libxrender1 \
-            libxext6 \
-            libxfixes3 \
-            libxrandr2 \
-            libxinerama1 \
-            libxcursor1 \
-            libxss1 \
+            libx11-dev \
+            libxi-dev \
+            libxrender-dev \
+            libxext-dev \
+            libxfixes-dev \
+            libxrandr-dev \
+            libxinerama-dev \
+            libxcursor-dev \
+            libxss-dev \
             libpthread-stubs0-dev
 
       - name: Verify QB64-PE Linux x86_64 setup
