@@ -56,7 +56,7 @@ jobs:
           )
           echo QB64-PE found.
 
-      - name: Override internal compiler (ABSOLUTE PATHS - FIXED)
+      - name: Override internal compiler (FIXED - NO TRAILING SLASH)
         shell: cmd
         run: |
           set "INTERNAL=%GITHUB_WORKSPACE%\tools\qb64pe_Windows_x64\internal\c\c_compiler"
@@ -72,28 +72,28 @@ jobs:
             exit 1
           )
 
-          rem Use ABSOLUTE PATH — NO RELATIVE PATH HACKS
-          set "REAL_BINDIR=%REAL_GCC:~0,-8%"
+          rem Remove trailing backslash from path
+          set "REAL_BINDIR=%REAL_GCC:~0,-9%"
 
           (
             echo @echo off
-            echo "%REAL_BINDIR%gcc.exe" %%*
+            echo "%REAL_BINDIR%\gcc.exe" %%*
           ) > "%INTERNAL%\bin\gcc.exe"
 
           (
             echo @echo off
-            echo "%REAL_BINDIR%g++.exe" %%*
+            echo "%REAL_BINDIR%\g++.exe" %%*
           ) > "%INTERNAL%\bin\g++.exe"
 
           (
             echo @echo off
-            echo "%REAL_BINDIR%make.exe" %%*
+            echo "%REAL_BINDIR%\make.exe" %%*
           ) > "%INTERNAL%\bin\make.exe"
 
           copy "%REAL_MAKE%" "%INTERNAL%\bin\mingw32-make.exe" /y >nul
 
           for %%D in (libgcc_s_seh-1.dll libstdc++-6.dll libwinpthread-1.dll) do (
-            if exist "%REAL_BINDIR%%%D" copy "%REAL_BINDIR%%%D" "%INTERNAL%\bin\" /y >nul
+            if exist "%REAL_BINDIR%\%%D" copy "%REAL_BINDIR%\%%D" "%INTERNAL%\bin\" /y >nul
           )
 
           echo Compiler override complete - using %REAL_BINDIR%
@@ -102,7 +102,7 @@ jobs:
         shell: cmd
         run: mkdir "%ARTIFACTS%" >nul
 
-      - name: Compile .bas files (CMD only)
+      - name: Compile .bas files
         id: compile
         shell: cmd
         run: |
