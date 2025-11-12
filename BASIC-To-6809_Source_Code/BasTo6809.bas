@@ -2,6 +2,7 @@ V$ = "4.44"
 '       - Add a new command  V=COCOHARDWARE(0) that will return a byte that identifies the coco & CPU version being used
 '         Bit 0 is the Computer Type, 0 = CoCo 1 or CoCo 2, 1 = CoCo 3 & Bit 7 is the CPU type, 0 = 6809, 1 = 6309
 
+
 ' V 4.43
 '       - Added support for the CoCoMP3 hardware, many comamnds to control it
 
