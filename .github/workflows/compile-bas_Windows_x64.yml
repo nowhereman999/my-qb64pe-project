@@ -28,157 +28,128 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install MinGW (Chocolatey)
-        shell: pwsh
-        run: |
-          choco install mingw --version=12.2.0.03042022 -y --no-progress
+        shell: cmd
+        run: choco install mingw --version=12.2.0.03042022 -y --no-progress
 
       - name: Add MinGW to PATH
-        shell: pwsh
+        shell: cmd
         run: |
-          $candidates = @(
-            'C:\tools\mingw64\bin'
-            'C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin'
-            'C:\mingw64\bin'
+          for %%p in (
+            "C:\tools\mingw64\bin"
+            "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin"
+            "C:\mingw64\bin"
+          ) do if exist %%p (
+            set "PATH=%%p;%PATH%"
+            echo %%p>> "%GITHUB_PATH%"
           )
-          foreach ($p in $candidates) {
-            if (Test-Path $p) {
-              $env:PATH = "$p;" + $env:PATH
-              "$p" | Out-File -FilePath $env:GITHUB_PATH -Append
-            }
-          }
           gcc --version
           g++ --version
 
       - name: Verify QB64-PE setup
-        shell: pwsh
+        shell: cmd
         run: |
-          $QB64PE_DIR = "$env:GITHUB_WORKSPACE\tools\qb64pe_Windows_x64"
-          if (-not (Test-Path "$QB64PE_DIR\qb64pe.exe")) {
-            Write-Error "qb64pe.exe missing! Commit tools/qb64pe_Windows_x64/"
+          if not exist "tools\qb64pe_Windows_x64\qb64pe.exe" (
+            echo qb64pe.exe missing! Commit tools/qb64pe_Windows_x64/
             exit 1
-          }
-          Write-Output "QB64-PE found."
+          )
+          echo QB64-PE found.
 
-      - name: Override internal compiler with system MinGW
-        shell: pwsh
+      - name: Override internal compiler with system MinGW (using CMD)
+        shell: cmd
         run: |
-          $QB64PE_DIR = "$env:GITHUB_WORKSPACE\tools\qb64pe_Windows_x64"
-          $internal    = "$QB64PE_DIR\internal\c\c_compiler"
-          Remove-Item -Recurse -Force $internal -ErrorAction SilentlyContinue
-          New-Item -ItemType Directory -Force -Path "$internal\bin" | Out-Null
-
-          $gccPath  = (Get-Command gcc.exe).Path
-          $gppPath  = (Get-Command g++.exe).Path
-          $makePath = (Get-Command make.exe).Path
-
-          if (-not $gccPath) {
-            Write-Error "gcc not found in PATH"
+          set "QB64PE_DIR=%GITHUB_WORKSPACE%\tools\qb64pe_Windows_x64"
+          set "INTERNAL=%QB64PE_DIR%\internal\c\c_compiler"
+          
+          rmdir /s /q "%INTERNAL%" 2>nul
+          mkdir "%INTERNAL%\bin" >nul
+          
+          for /f "delims=" %%G in ('where gcc.exe') do set "GCC=%%G"
+          for /f "delims=" %%X in ('where g++.exe') do set "GPP=%%X"
+          for /f "delims=" %%M in ('where make.exe') do set "MAKE=%%M"
+          
+          if not defined GCC (
+            echo gcc not found in PATH
             exit 1
-          }
-
-          $gccWrapper = @"
-@echo off
-"$gccPath" %*
-"@
-
-          $gppWrapper = @"
-@echo off
-"$gppPath" %*
-"@
-
-          $makeWrapper = @"
-@echo off
-"$makePath" %*
-"@
-
-          $gccWrapper  | Out-File -Encoding ASCII -FilePath "$internal\bin\gcc.exe"
-          $gppWrapper  | Out-File -Encoding ASCII -FilePath "$internal\bin\g++.exe"
-          $makeWrapper | Out-File -Encoding ASCII -FilePath "$internal\bin\make.exe"
-
-          $dlls = @("libgcc_s_seh-1.dll", "libstdc++-6.dll", "libwinpthread-1.dll")
-          $binDir = Split-Path $gccPath
-          foreach ($dll in $dlls) {
-            $src = Join-Path $binDir $dll
-            if (Test-Path $src) {
-              Copy-Item $src "$internal\bin\" -Force
-            }
-          }
-
-          Write-Output "Internal compiler overridden with system MinGW"
+          )
+          
+          (
+            echo @echo off
+            echo "%GCC%" %%*
+          ) > "%INTERNAL%\bin\gcc.exe"
+          
+          (
+            echo @echo off
+            echo "%GPP%" %%*
+          ) > "%INTERNAL%\bin\g++.exe"
+          
+          (
+            echo @echo off
+            echo "%MAKE%" %%*
+          ) > "%INTERNAL%\bin\make.exe"
+          
+          set "BINDIR=%GCC:~0,-8%"
+          for %%D in (
+            libgcc_s_seh-1.dll
+            libstdc++-6.dll
+            libwinpthread-1.dll
+          ) do if exist "%BINDIR%%%D" copy "%BINDIR%%%D" "%INTERNAL%\bin\" /y >nul
+          
+          echo Internal compiler overridden with system MinGW
 
       - name: Compile selected .bas files
         id: compile
         shell: pwsh
         run: |
-          $QB64PE_DIR   = "$env:GITHUB_WORKSPACE\tools\qb64pe_Windows_x64"
-          $ARTIFACT_DIR = "$env:GITHUB_WORKSPACE\artifacts"
-          New-Item -ItemType Directory -Force -Path $ARTIFACT_DIR | Out-Null
+          $QB64PE = "$env:GITHUB_WORKSPACE\tools\qb64pe_Windows_x64\qb64pe.exe"
+          $ARTIFACTS = "$env:GITHUB_WORKSPACE\artifacts"
+          New-Item -ItemType Directory -Force -Path $ARTIFACTS | Out-Null
 
           if ($env:INPUT_BAS_PATHS) {
-            $FILES = $env:INPUT_BAS_PATHS -split ','
+            $files = $env:INPUT_BAS_PATHS -split ','
           } else {
-            $ROOT_DIR   = "$env:GITHUB_WORKSPACE\BASIC-To-6809_Source_Code"
-            $ROOT_FILES = Get-ChildItem "$ROOT_DIR\*" -Include *.bas, *.BAS -File |
-              ForEach-Object { $_.FullName.Substring($env:GITHUB_WORKSPACE.Length + 1) }
-
-            $SDECB_PATH = ""
-            @("SDECB.bas", "SDECB.BAS") | ForEach-Object {
-              $p = "$ROOT_DIR\IDE\$_"
-              if (Test-Path $p) { $SDECB_PATH = "BASIC-To-6809_Source_Code/IDE/$_" }
+            $root = "$env:GITHUB_WORKSPACE\BASIC-To-6809_Source_Code"
+            $files = Get-ChildItem "$root\*" -Include *.bas,*.BAS -File -Recurse | ForEach-Object {
+              $_.FullName.Substring($env:GITHUB_WORKSPACE.Length + 1)
             }
-
-            $FILES = $ROOT_FILES
-            if ($SDECB_PATH) { $FILES += $SDECB_PATH }
+            $sdecb = Get-ChildItem "$root\IDE\SDECB.*" -File | Select-Object -First 1
+            if ($sdecb) { $files += $sdecb.FullName.Substring($env:GITHUB_WORKSPACE.Length + 1) }
           }
 
-          $UNIQUE = $FILES | Sort-Object -Unique | Where-Object { $_ -match '\.[bB][aA][sS]$' }
-          if ($UNIQUE.Count -eq 0) {
+          $files = $files | Where-Object { $_ -match '\.bas$' -or $_ -match '\.BAS$' } | Sort-Object -Unique
+          if ($files.Count -eq 0) {
             echo "executables=" >> $env:GITHUB_OUTPUT
             echo "compiled_count=0" >> $env:GITHUB_OUTPUT
             exit 0
           }
 
-          Write-Output "Compiling $($UNIQUE.Count) file(s):"
-          $UNIQUE | ForEach-Object { Write-Output " - $_" }
-
-          $EXECUTABLES = @()
-          $COUNT = 0
-
-          foreach ($file in $UNIQUE) {
-            $file    = $file.Trim()
-            $rel_dir = Split-Path $file -Parent
-            $filename = Split-Path $file -Leaf
-            $base    = [System.IO.Path]::GetFileNameWithoutExtension($filename)
-            $full_dir = "$env:GITHUB_WORKSPACE\$rel_dir"
-            Set-Location $full_dir
-
-            Write-Output "Compiling: $filename → $base.exe"
-            & "$QB64PE_DIR\qb64pe.exe" -x "$filename" -o "$base.exe"
-
+          $exes = @()
+          $count = 0
+          foreach ($f in $files) {
+            $dir = Split-Path $f
+            $name = Split-Path $f -Leaf
+            $base = [IO.Path]::GetFileNameWithoutExtension($name)
+            Set-Location "$env:GITHUB_WORKSPACE\$dir"
+            Write-Output "Compiling $name -> $base.exe"
+            & $QB64PE -x "$name" -o "$base.exe"
             if ($LASTEXITCODE -ne 0) {
-              $LOG = "$QB64PE_DIR\internal\temp\compilelog.txt"
-              Write-Output "=== COMPILATION ERROR ==="
-              if (Test-Path $LOG) { Get-Content $LOG }
-              else { Write-Output "No compilelog.txt" }
-              Write-Output "========================"
+              $log = "$env:GITHUB_WORKSPACE\tools\qb64pe_Windows_x64\internal\temp\compilelog.txt"
+              Write-Output "=== ERROR ==="
+              if (Test-Path $log) { Get-Content $log }
+              Write-Output "============"
               exit 1
             }
-
-            Copy-Item "$base.exe" "$ARTIFACT_DIR\$base.exe" -Force
+            Copy-Item "$base.exe" "$ARTIFACTS\$base.exe" -Force
             Remove-Item "$base.exe" -ErrorAction SilentlyContinue
-            $EXECUTABLES += "$base.exe"
-            $COUNT++
+            $exes += $base + ".exe"
+            $count++
           }
-
-          $EXEC_LIST = $EXECUTABLES -join " "
-          echo "executables=$EXEC_LIST" >> $env:GITHUB_OUTPUT
-          echo "compiled_count=$COUNT" >> $env:GITHUB_OUTPUT
+          echo "executables=$($exes -join ' ')" >> $env:GITHUB_OUTPUT
+          echo "compiled_count=$count" >> $env:GITHUB_OUTPUT
 
       - name: Create zip archive
         if: steps.compile.outputs.compiled_count > 0
-        shell: pwsh
-        run: |
-          Compress-Archive -Path "$env:GITHUB_WORKSPACE\artifacts\*.exe" -DestinationPath qb64pe_Windows_x64_executables.zip -Force
+        shell: cmd
+        run: powershell -Command "Compress-Archive -Path '%GITHUB_WORKSPACE%\artifacts\*.exe' -DestinationPath qb64pe_Windows_x64_executables.zip -Force"
 
       - name: Upload artifact
         if: steps.compile.outputs.compiled_count > 0
@@ -196,9 +167,7 @@ jobs:
           Add-Content $env:GITHUB_STEP_SUMMARY ''
           Add-Content $env:GITHUB_STEP_SUMMARY "Compiled **${{ steps.compile.outputs.compiled_count }}** program(s):"
           Add-Content $env:GITHUB_STEP_SUMMARY ''
-          "${{ steps.compile.outputs.executables }}" -split ' ' | ForEach-Object {
-            Add-Content $env:GITHUB_STEP_SUMMARY "- `$_`"
-          }
+          "${{ steps.compile.outputs.executables }}" -split ' ' | ForEach-Object { Add-Content $env:GITHUB_STEP_SUMMARY "- `$_`" }
           Add-Content $env:GITHUB_STEP_SUMMARY ''
           Add-Content $env:GITHUB_STEP_SUMMARY 'Download **qb64pe_Windows_x64_executables.zip** from Artifacts'
           Add-Content $env:GITHUB_STEP_SUMMARY '*Native 64-bit Windows .exe files (no dependencies)*'
