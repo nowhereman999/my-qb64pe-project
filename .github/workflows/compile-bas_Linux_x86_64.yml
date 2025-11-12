@@ -26,7 +26,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install QB64-PE build + runtime dependencies (Ubuntu 24.04)
+      - name: Install FULL QB64-PE build + runtime dependencies (Ubuntu 24.04)
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -35,9 +35,9 @@ jobs:
             make \
             libgl1-mesa-dev \
             libglu1-mesa-dev \
+            libpng-dev \
+            libcurl4-openssl-dev \
             libasound2t64 \
-            libpng16-16 \
-            libcurl4 \
             libx11-dev \
             libxi-dev \
             libxrender-dev \
@@ -47,7 +47,9 @@ jobs:
             libxinerama-dev \
             libxcursor-dev \
             libxss-dev \
-            libpthread-stubs0-dev
+            libpthread-stubs0-dev \
+            libfreetype-dev \
+            zlib1g-dev
 
       - name: Verify QB64-PE Linux x86_64 setup
         run: |
