@@ -40,12 +40,12 @@ jobs:
         working-directory: qb64pe-source
         run: git checkout v4.1.0
 
-      # Important: run .cmd with the CMD shell and 'call' it so the step returns
+      # Run .cmd using the CMD shell; use `call` and redirect input to avoid "Press any key..."
       - name: Build QB64-PE – headless (no IDE launch)
         shell: cmd
         working-directory: qb64pe-source
         run: |
-          call setup_win.cmd nolaunch
+          call setup_win.cmd nolaunch < NUL
 
       - name: Verify binary was built
         shell: pwsh
@@ -77,10 +77,12 @@ jobs:
       - name: Job summary
         shell: pwsh
         run: |
-          Add-Content $env:GITHUB_STEP_SUMMARY "## QB64-PE v4.1 Windows x64 Built (No IDE Launch)"
-          Add-Content $env:GITHUB_STEP_SUMMARY ""
-          Add-Content $env:GITHUB_STEP_SUMMARY "- Runner: **windows-2022** (has WMIC)"
-          Add-Content $env:GITHUB_STEP_SUMMARY "- Toolchain: **MinGW-w64 12.2** via Chocolatey"
-          Add-Content $env:GITHUB_STEP_SUMMARY "- Build script executed with **shell: cmd** using `call setup_win.cmd nolaunch`"
-          Add-Content $env:GITHUB_STEP_SUMMARY ""
-          Add-Content $env:GITHUB_STEP_SUMMARY "Download artifact: **qb64pe_windows_x64_v4.1.zip**"
+          @'
+          ## QB64-PE v4.1 Windows x64 Built (No IDE Launch)
+
+          - Runner: **windows-2022** (has WMIC)
+          - Toolchain: **MinGW-w64 12.2** via Chocolatey
+          - Build script executed with **shell: cmd** using `call setup_win.cmd nolaunch`
+
+          Download artifact: **qb64pe_windows_x64_v4.1.zip**
+          '@ | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
