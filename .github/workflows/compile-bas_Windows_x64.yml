@@ -22,14 +22,14 @@ on:
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: windows-2022   # Critical: windows-latest no longer has old MinGW package
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Install MinGW (Chocolatey)
         shell: cmd
-        run: choco install mingw --version=12.2.0.03042022 -y --no-progress
+        run: choco install mingw --version=13.2.0 -y --no-progress
 
       - name: Add MinGW to PATH
         shell: cmd
@@ -54,7 +54,7 @@ jobs:
           )
           echo QB64-PE found.
 
-      - name: Override internal compiler with system MinGW (using CMD)
+      - name: Override internal compiler with system MinGW (CMD)
         shell: cmd
         run: |
           set "QB64PE_DIR=%GITHUB_WORKSPACE%\tools\qb64pe_Windows_x64"
@@ -133,14 +133,15 @@ jobs:
             & $QB64PE -x "$name" -o "$base.exe"
             if ($LASTEXITCODE -ne 0) {
               $log = "$env:GITHUB_WORKSPACE\tools\qb64pe_Windows_x64\internal\temp\compilelog.txt"
-              Write-Output "=== ERROR ==="
+              Write-Output "=== COMPILATION ERROR ==="
               if (Test-Path $log) { Get-Content $log }
-              Write-Output "============"
+              else { Write-Output "No compilelog.txt" }
+              Write-Output "========================"
               exit 1
             }
             Copy-Item "$base.exe" "$ARTIFACTS\$base.exe" -Force
             Remove-Item "$base.exe" -ErrorAction SilentlyContinue
-            $exes += $base + ".exe"
+            $exes += "$base.exe"
             $count++
           }
           echo "executables=$($exes -join ' ')" >> $env:GITHUB_OUTPUT
