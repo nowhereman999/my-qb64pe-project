@@ -27,12 +27,15 @@ jobs:
           cd qb64pe-source
           git checkout v4.1.0
 
-      - name: Build QB64-PE – headless (no IDE launch)
-        shell: bash
+      - name: Enable WMIC (Feature on Demand)
+        shell: pwsh
         run: |
-          cd qb64pe-source
-          chmod +x ./setup_win.cmd
-          ./setup_win.cmd nolaunch
+          dism /Online /Add-Capability /CapabilityName:WMIC~~~~
+
+      - name: Build QB64-PE – headless (no IDE launch)
+        shell: cmd
+        working-directory: qb64pe-source
+        run: setup_win.cmd nolaunch
 
       - name: Verify binary was built
         run: |
