@@ -7,7 +7,7 @@ jobs:
       matrix:
         config:
           - { os: macos-latest, arch: arm64, label: MacOS_arm }
-          - { os: macos-13, arch: x86_64, label: MacOS_x86 }
+          - { os: macos-15-intel, arch: x86_64, label: MacOS_x86 }
           - { os: ubuntu-latest, arch: x86_64, label: Linux_x86_64 }
           - { os: ubuntu-22.04-arm, arch: arm64, label: Linux_arm64 }
           - { os: windows-latest, arch: x64, label: Windows_x64 }
@@ -22,8 +22,8 @@ jobs:
           msystem: MINGW64
           update: true
           install: >-
-            mingw-w64-x86_64-gcc
-            mingw-w64-x86_64-make
+            base-devel
+            mingw-w64-x86_64-toolchain
 
       - name: Download LWTOOLS source (Unix)
         if: runner.os != 'Windows'
@@ -57,7 +57,7 @@ jobs:
         shell: msys2 {0}
         run: |
           cd lwtools-4.24
-          make
+          mingw32-make
 
       - name: Upload LWTOOLS Artifact
         uses: actions/upload-artifact@v4
