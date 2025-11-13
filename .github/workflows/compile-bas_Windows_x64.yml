@@ -108,7 +108,6 @@ jobs:
             Push-Location $dir
             Write-Host "`nCompiling (in $(Split-Path $relPath -Parent)): $filename -> $base.exe"
 
-            # REMOVED: -RedirectStandardInput (not needed)
             $process = Start-Process `
               -FilePath $env:QB64PE_EXE `
               -ArgumentList "-x", $filename, "-o", "$base.exe" `
@@ -118,7 +117,6 @@ jobs:
               -RedirectStandardOutput "$env:TEMP\qb64pe_stdout.txt" `
               -RedirectStandardError "$env:TEMP\qb64pe_stderr.txt"
 
-            # Print output
             if (Test-Path "$env:TEMP\qb64pe_stdout.txt") {
               Get-Content "$env:TEMP\qb64pe_stdout.txt" | Write-Host
             }
@@ -159,9 +157,10 @@ jobs:
         shell: pwsh
         run: |
           Set-Location "$env:ARTIFACTS_DIR"
-          $exes = "${{ steps.compile.outputs.executables }}"
+          # FIXED: Split into array
+          $exes = "${{ steps.compile.outputs.executables }}" -split ' ' | Where-Object { $_ -ne '' }
           Compress-Archive -Path $exes -DestinationPath qb64pe_Windows_x64_executables.zip -Force
-          Write-Host "Zipped ${{ steps.compile.outputs.compiled_count }} executable(s)"
+          Write-Host "Zipped $($exes.Count) executable(s)"
 
       - name: Upload artifact
         if: steps.compile.outputs.compiled_count > 0
@@ -171,7 +170,7 @@ jobs:
           path: ${{ github.workspace }}\artifacts\qb64pe_Windows_x64_executables.zip
           retention-days: 30
 
-      - name: Job summary
+      - name: Job summons
         if: success()
         shell: pwsh
         run: |
