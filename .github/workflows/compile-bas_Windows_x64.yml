@@ -66,7 +66,6 @@ jobs:
           $rootDir = "$env:GITHUB_WORKSPACE\BASIC-To-6809_Source_Code"
           $filesToCompile = @()
 
-          # Use manual input or auto-detect
           if ($env:INPUT_BAS_PATHS) {
             $filesToCompile = $env:INPUT_BAS_PATHS -split ',' | ForEach-Object { $_.Trim() }
           } else {
@@ -109,33 +108,30 @@ jobs:
             Push-Location $dir
             Write-Host "`nCompiling (in $(Split-Path $relPath -Parent)): $filename -> $base.exe"
 
-            # Run QB64-PE with full output and input redirection
+            # FIXED: Use $null for NUL device
             $process = Start-Process `
               -FilePath $env:QB64PE_EXE `
               -ArgumentList "-x", $filename, "-o", "$base.exe" `
               -Wait `
               -PassThru `
               -NoNewWindow `
-              -RedirectStandardInput "nul" `
+              -RedirectStandardInput $null `
               -RedirectStandardOutput "$env:TEMP\qb64pe_stdout.txt" `
               -RedirectStandardError "$env:TEMP\qb64pe_stderr.txt"
 
-            # Print live output
+            # Print output
             if (Test-Path "$env:TEMP\qb64pe_stdout.txt") {
-              Get-Content "$env:TEMP\qb64pe_stdout.txt" | ForEach-Object { Write-Host $_ }
+              Get-Content "$env:TEMP\qb64pe_stdout.txt" | Write-Host
             }
             if (Test-Path "$env:TEMP\qb64pe_stderr.txt") {
-              Get-Content "$env:TEMP\qb64pe_stderr.txt" | ForEach-Object { Write-Host $_ }
+              Get-Content "$env:TEMP\qb64pe_stderr.txt" | Write-Host
             }
 
             if ($process.ExitCode -ne 0) {
               $logPath = "$qb64peDir\internal\temp\compilelog.txt"
               Write-Host "`n=== COMPILATION ERROR ==="
-              if (Test-Path $logPath) {
-                Get-Content $logPath | Write-Host
-              } else {
-                Write-Host "compilelog.txt not found."
-              }
+              if (Test-Path $logPath) { Get-Content $logPath | Write-Host }
+              else { Write-Host "compilelog.txt not found." }
               Write-Host "=========================`n"
               Pop-Location
               exit 1
