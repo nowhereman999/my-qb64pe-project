@@ -12,16 +12,16 @@ jobs:
           curl -L https://github.com/n6il/toolshed/archive/refs/heads/master.tar.gz -o toolshed.tar.gz
           tar -xzf toolshed.tar.gz
 
-      - name: Build Required Libraries
+      - name: Build Libraries from build/unix
         run: |
-          cd toolshed-master
-          make -C build/unix libtoolshed libdecb libcoco librbf libmisc libnative libcecb libsys
+          cd toolshed-master/build/unix
+          make libtoolshed libdecb libcoco librbf libmisc libnative libcecb libsys
 
       - name: Build DECB (Clean + Build)
         run: |
-          cd toolshed-master
-          make -C build/unix/decb clean
-          make -C build/unix/decb
+          cd toolshed-master/build/unix
+          make -C decb clean
+          make -C decb
 
       - name: Verify DECB Binary
         run: |
@@ -38,7 +38,6 @@ jobs:
           path: toolshed-master/build/unix/decb/decb
           retention-days: 5
 
-          
       - name: Remove Gatekeeper Quarantine
         run: |
           xattr -d com.apple.quarantine toolshed-master/build/unix/decb/decb 2>/dev/null || true
