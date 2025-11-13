@@ -47,7 +47,7 @@ jobs:
           cd /d "%SOURCE_DIR%"
 
           echo Compiling BasTo6809.bas to BasTo6809.exe
-          call "%QB64PE%" -x "BasTo6809.bas" -o "BasTo6809.exe"
+          call "%QB64PE%" -x "BasTo6809.bas" -o "BasTo6809.exe" < nul
 
           if errorlevel 1 (
             echo.
@@ -66,7 +66,7 @@ jobs:
         if: always()
         shell: cmd
         run: |
-          set "LOG=%GITHUB_WORKSPACE%\BASIC-To-6809_Source_Code\internal\temp\compilelog.txt"
+          set "LOG=%GITHUB_WORKSPACE%\tools\qb64pe_Windows_x64\internal\temp\compilelog.txt"
           echo.
           echo ================================
           echo    CONTENTS OF compilelog.txt
