@@ -180,7 +180,7 @@ jobs:
           $exeList = "${{ steps.compile.outputs.executables }}".Trim()
           if ($exeList) {
             $exeList -split ' ' | Where-Object { $_ -ne '' } | ForEach-Object {
-              $summary += "- `$_`n"
+              $summary += "- $_`n"
             }
           } else {
             $summary += "*No executables generated.*`n"
