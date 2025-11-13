@@ -1,4 +1,4 @@
-name: Build Toolshed (DECB)
+name: Build Toolshed DECB
 
 on: [push, pull_request]
 
@@ -46,23 +46,27 @@ jobs:
         shell: msys2 {0}
         run: tar -xzf toolshed.tar.gz
 
-      - name: Build Toolshed (Unix)
+      - name: Build DECB (Unix)
         if: runner.os != 'Windows'
         shell: bash
         run: |
           cd toolshed-master
-          make -C build/unix install
+          cd build/unix/decb
+          make
 
-      - name: Build Toolshed (Windows)
+      - name: Build DECB (Windows)
         if: runner.os == 'Windows'
         shell: msys2 {0}
         run: |
           cd toolshed-master
-          make -C build/unix install CC=gcc
+          cd build/win32/decb
+          mingw32-make
 
-      - name: Upload Toolshed Artifact
+      - name: Upload Toolshed DECB Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: toolshed-${{ matrix.config.label }}
-          path: toolshed-master
+          name: toolshed-decb-${{ matrix.config.label }}
+          path: |
+            toolshed-master/build/unix/decb
+            toolshed-master/build/win32/decb
           retention-days: 5
