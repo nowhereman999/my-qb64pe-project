@@ -107,29 +107,47 @@ jobs:
             $base = [System.IO.Path]::GetFileNameWithoutExtension($filename)
 
             Push-Location $dir
-            Write-Host "Compiling (in $(Split-Path $relPath -Parent)): $filename -> $base.exe"
+            Write-Host "`nCompiling (in $(Split-Path $relPath -Parent)): $filename -> $base.exe"
 
-            # Use cmd /c with input redirection to prevent GUI/console hang
-            $cmd = "cmd /c `"`"$env:QB64PE_EXE`" -x `"$filename`" -o `"$base.exe`" < nul`""
-            $result = Invoke-Expression $cmd
-            $exitCode = $LASTEXITCODE
+            # Run QB64-PE with full output and input redirection
+            $process = Start-Process `
+              -FilePath $env:QB64PE_EXE `
+              -ArgumentList "-x", $filename, "-o", "$base.exe" `
+              -Wait `
+              -PassThru `
+              -NoNewWindow `
+              -RedirectStandardInput "nul" `
+              -RedirectStandardOutput "$env:TEMP\qb64pe_stdout.txt" `
+              -RedirectStandardError "$env:TEMP\qb64pe_stderr.txt"
 
-            # Optional: print QB64-PE output for debugging
-            if ($result) { Write-Host $result }
+            # Print live output
+            if (Test-Path "$env:TEMP\qb64pe_stdout.txt") {
+              Get-Content "$env:TEMP\qb64pe_stdout.txt" | ForEach-Object { Write-Host $_ }
+            }
+            if (Test-Path "$env:TEMP\qb64pe_stderr.txt") {
+              Get-Content "$env:TEMP\qb64pe_stderr.txt" | ForEach-Object { Write-Host $_ }
+            }
 
-            if ($exitCode -ne 0) {
+            if ($process.ExitCode -ne 0) {
               $logPath = "$qb64peDir\internal\temp\compilelog.txt"
-              Write-Host "=== COMPILATION ERROR ==="
+              Write-Host "`n=== COMPILATION ERROR ==="
               if (Test-Path $logPath) {
                 Get-Content $logPath | Write-Host
               } else {
                 Write-Host "compilelog.txt not found."
               }
-              Write-Host "========================="
+              Write-Host "=========================`n"
               Pop-Location
               exit 1
             }
 
+            if (-not (Test-Path "$base.exe")) {
+              Write-Error "ERROR: $base.exe was not created!"
+              Pop-Location
+              exit 1
+            }
+
+            Write-Host "-> $base.exe created and copied to artifacts"
             Copy-Item "$base.exe" "$env:ARTIFACTS_DIR\$base.exe" -Force
             Remove-Item "$base.exe" -Force -ErrorAction SilentlyContinue
             $executables += "$base.exe"
