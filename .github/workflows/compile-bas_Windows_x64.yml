@@ -1,108 +1,62 @@
-name: Compile QB64-PE (Windows x64) - Test Single File
+name: Compile BasTo6809 on Windows
 
 on:
-  workflow_dispatch:
-    inputs:
-      dummy:
-        description: 'Manual trigger for testing'
-        required: false
+  push:
+    branches:
+      - main # Trigger on push to main branch
+  pull_request:
+    branches:
+      - main # Trigger on pull requests to main branch
 
 jobs:
   build:
-    runs-on: windows-2022
-    env:
-      QB64PE: ${{ github.workspace }}\tools\qb64pe_Windows_x64\qb64pe.exe
-      ARTIFACTS: ${{ github.workspace }}\artifacts
+    runs-on: windows-latest # Use the latest Windows runner
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+    - name: Checkout repository
+      uses: actions/checkout@v4 # Action to pull your code into the runner
 
-      - name: Verify QB64-PE
-        shell: cmd
-        run: |
-          if not exist "%QB64PE%" (
-            echo qb64pe.exe missing!
-            exit 1
-          )
-          echo QB64-PE found.
+    - name: Compile the QB64-PE program
+      # Uses a PowerShell script to run the executable from its subdirectory
+      # and compile the specified BASIC file using the -x flag.
+      run: |
+        $exePath = ".\tools\qb64pe_Windows_x64\qb64pe.exe"
+        $sourceFile = ".\BASIC-To-6809_Source_Code\BasTo6809.bas"
+        
+        # Run the compiler with the -x option
+        & $exePath -x $sourceFile
 
-      - name: Create artifacts folder
-        shell: cmd
-        run: mkdir "%ARTIFACTS%" >nul
+    - name: Locate and upload compiled artifact
+      # The compiled executable typically has the same name as the source file without the extension.
+      # We need to find the exact location of the output executable.
+      run: |
+        $outputName = "BasTo6809.exe"
+        $compiledPath = Join-Path (Get-Location) $outputName
+        
+        # Check if the file exists before attempting to upload
+        if (Test-Path $compiledPath) {
+          echo "Found compiled executable at $compiledPath"
+        } else {
+          # The compiler might place the output in a subdirectory, check in the tools directory as a common place
+          $toolsPath = Join-Path (Get-Location) "tools\qb64pe_Windows_x64"
+          $compiledPath = Join-Path $toolsPath $outputName
 
-      - name: Compile ONLY BasTo6809.bas
-        id: compile
-        shell: cmd
-        run: |
-          set "SOURCE_DIR=%GITHUB_WORKSPACE%\BASIC-To-6809_Source_Code"
-          set "TARGET=%SOURCE_DIR%\BasTo6809.bas"
+          if (Test-Path $compiledPath) {
+             echo "Found compiled executable at $compiledPath"
+          } else {
+             # Fallback if the path is still unknown, you may need to check the compiler documentation
+             echo "Could not find the compiled executable $outputName. Check compiler settings."
+             exit 1 
+          }
+        }
+        
+        # Upload the artifact
+        echo "::set-output name=artifact_path::$compiledPath"
+      shell: powershell
+      id: find_artifact # Give this step an ID to reference its output
 
-          if not exist "%TARGET%" (
-            echo ERROR: BasTo6809.bas not found!
-            exit 1
-          )
-
-          echo Changing to source directory: %SOURCE_DIR%
-          cd /d "%SOURCE_DIR%"
-
-          echo Compiling BasTo6809.bas to BasTo6809.exe
-          call "%QB64PE%" -x "BasTo6809.bas" -o "BasTo6809.exe" < nul
-
-          if errorlevel 1 (
-            echo.
-            echo === COMPILATION FAILED ===
-            exit 1
-          )
-
-          echo Compilation successful!
-          copy "BasTo6809.exe" "%ARTIFACTS%\BasTo6809.exe" /y >nul
-          del "BasTo6809.exe" 2>nul
-
-          echo executables=BasTo6809.exe>> "%GITHUB_OUTPUT%"
-          echo compiled_count=1>> "%GITHUB_OUTPUT%"
-
-      - name: Print compilelog.txt (always)
-        if: always()
-        shell: cmd
-        run: |
-          set "LOG=%GITHUB_WORKSPACE%\tools\qb64pe_Windows_x64\internal\temp\compilelog.txt"
-          echo.
-          echo ================================
-          echo    CONTENTS OF compilelog.txt
-          echo ================================
-          if exist "%LOG%" (
-            echo Found compilelog.txt - printing contents:
-            type "%LOG%"
-          ) else (
-            echo [ERROR] compilelog.txt NOT FOUND at:
-            echo     %LOG%
-            echo.
-            echo Listing internal\temp directory:
-            dir "%GITHUB_WORKSPACE%\BASIC-To-6809_Source_Code\internal\temp\" /on 2>nul || echo Directory does not exist
-          )
-          echo.
-          echo ================================
-
-      - name: Create zip
-        if: steps.compile.outputs.compiled_count == '1'
-        shell: cmd
-        run: powershell -Command "Compress-Archive -Path '%ARTIFACTS%\*.exe' -DestinationPath qb64pe_Windows_x64_executables.zip -Force"
-
-      - name: Upload artifact
-        if: steps.compile.outputs.compiled_count == '1'
-        uses: actions/upload-artifact@v4
-        with:
-          name: qb64pe-windows-x64-executables
-          path: qb64pe_Windows_x64_executables.zip
-          retention-days: 30
-
-      - name: Summary
-        if: success() && steps.compile.outputs.compiled_count == '1'
-        shell: cmd
-        run: |
-          echo ## QB64-PE Build Complete>> "%GITHUB_STEP_SUMMARY%"
-          echo.>> "%GITHUB_STEP_SUMMARY%"
-          echo Compiled **1** program: `BasTo6809.exe`>> "%GITHUB_STEP_SUMMARY%"
-          echo.>> "%GITHUB_STEP_SUMMARY%"
-          echo Download **qb64pe_Windows_x64_executables.zip**>> "%GITHUB_STEP_SUMMARY%"
+    - name: Upload compiled executable as artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: BasTo6809-Windows-x64
+        path: ${{ steps.find_artifact.outputs.artifact_path }} # Use the path found in the previous step
