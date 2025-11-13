@@ -12,17 +12,13 @@ jobs:
           curl -L https://github.com/n6il/toolshed/archive/refs/heads/master.tar.gz -o toolshed.tar.gz
           tar -xzf toolshed.tar.gz
 
-      - name: Clean and Build Libraries
+      - name: Build Libraries and DECB
         run: |
           cd toolshed-master/build/unix
-          make clean
-          make libtoolshed libdecb libcoco librbf libmisc libnative libcecb libsys
-
-      - name: Build DECB (Clean + Build)
-        run: |
-          cd toolshed-master/build/unix
-          make -C decb clean
-          make -C decb
+          for lib in libtoolshed libdecb libcoco librbf libmisc libnative libcecb libsys; do
+            (cd $lib; make clean; make)
+          done
+          (cd decb; make clean; make)
 
       - name: Verify DECB Binary
         run: |
