@@ -25,6 +25,21 @@ jobs:
         
         # Run the compiler with the -x option
         & $exePath -x $sourceFile
+      shell: powershell
+
+    - name: Display compile log if compilation failed
+      # Only run this step if the previous step failed
+      if: steps.compile_qb64.outcome == 'failure'
+      run: |
+        $logPath = ".\tools\qb64pe_Windows_x64\internal\temp\compilelog.txt"
+        if (Test-Path $logPath) {
+            Write-Host "--- Start of compilelog.txt ---"
+            Get-Content $logPath
+            Write-Host "--- End of compilelog.txt ---"
+        } else {
+            Write-Host "compilelog.txt not found at $logPath"
+        }
+      shell: powershell
 
     - name: Locate and upload compiled artifact
       # The compiled executable typically has the same name as the source file without the extension.
