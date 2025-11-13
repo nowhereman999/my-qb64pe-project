@@ -1,5 +1,4 @@
 name: Build LWTOOLS
-
 on: [push, pull_request]
 
 jobs:
@@ -26,16 +25,36 @@ jobs:
             mingw-w64-x86_64-gcc
             mingw-w64-x86_64-make
 
-      - name: Download LWTOOLS source
-        shell: ${{ runner.os == 'Windows' && 'msys2 {0}' || 'bash' }}
+      - name: Download LWTOOLS source (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
         run: curl -L https://www.lwtools.ca/releases/lwtools/lwtools-4.24.tar.gz -o lwtools.tar.gz
 
-      - name: Extract source
-        shell: ${{ runner.os == 'Windows' && 'msys2 {0}' || 'bash' }}
+      - name: Download LWTOOLS source (Windows)
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        run: curl -L https://www.lwtools.ca/releases/lwtools/lwtools-4.24.tar.gz -o lwtools.tar.gz
+
+      - name: Extract source (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
         run: tar -xzf lwtools.tar.gz
 
-      - name: Build LWTOOLS
-        shell: ${{ runner.os == 'Windows' && 'msys2 {0}' || 'bash' }}
+      - name: Extract source (Windows)
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        run: tar -xzf lwtools.tar.gz
+
+      - name: Build LWTOOLS (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          cd lwtools-4.24
+          make
+
+      - name: Build LWTOOLS (Windows)
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
         run: |
           cd lwtools-4.24
           make
