@@ -47,7 +47,7 @@ jobs:
           cd /d "%SOURCE_DIR%"
 
           echo Compiling BasTo6809.bas to BasTo6809.exe
-          call "%QB64PE%" -x "BasTo6809.bas" -o "BasTo6809.exe" < nul
+          call "%QB64PE%" -x "BasTo6809.bas" -o "BasTo6809.exe"
 
           if errorlevel 1 (
             echo.
