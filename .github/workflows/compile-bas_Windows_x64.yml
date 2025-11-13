@@ -3,75 +3,71 @@ name: Compile BasTo6809 on Windows
 on:
   push:
     branches:
-      - main # Trigger on push to main branch
+      - main
   pull_request:
     branches:
-      - main # Trigger on pull requests to main branch
+      - main
 
 jobs:
   build:
-    runs-on: windows-latest # Use the latest Windows runner
+    runs-on: windows-latest
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4 # Action to pull your code into the runner
+      uses: actions/checkout@v4
+
+    - name: Add QB64-PE compiler binaries to PATH
+      # This step makes the MinGW/GCC executables available to all subsequent steps.
+      run: |
+        $compilerPath = Join-Path (Get-Location) "tools\qb64pe_Windows_x64\internal\c\c_compiler\bin"
+        echo "Adding $compilerPath to PATH"
+        # Append the path to the GITHUB_PATH environment file
+        echo "$compilerPath" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      shell: powershell
 
     - name: Compile the QB64-PE program
-      # Uses a PowerShell script to run the executable from its subdirectory
-      # and compile the specified BASIC file using the -x flag.
+      id: compile_qb64
+      # Removed continue-on-error: true here. If this fails, the job stops, 
+      # but we rely on the error message (and potentially the log file) 
+      # to diagnose issues.
       run: |
         $exePath = ".\tools\qb64pe_Windows_x64\qb64pe.exe"
         $sourceFile = ".\BASIC-To-6809_Source_Code\BasTo6809.bas"
         
-        # Run the compiler with the -x option
+        # Now qb64pe.exe can find gcc.exe because the directory is in the PATH
         & $exePath -x $sourceFile
       shell: powershell
 
-    - name: Display compile log if compilation failed
-      # Only run this step if the previous step failed
-      if: steps.compile_qb64.outcome == 'failure'
-      run: |
-        $logPath = ".\tools\qb64pe_Windows_x64\internal\temp\compilelog.txt"
-        if (Test-Path $logPath) {
-            Write-Host "--- Start of compilelog.txt ---"
-            Get-Content $logPath
-            Write-Host "--- End of compilelog.txt ---"
-        } else {
-            Write-Host "compilelog.txt not found at $logPath"
-        }
-      shell: powershell
-
     - name: Locate and upload compiled artifact
-      # The compiled executable typically has the same name as the source file without the extension.
-      # We need to find the exact location of the output executable.
+      # This step only runs if the compilation (previous step) was successful
+      if: success()
       run: |
         $outputName = "BasTo6809.exe"
+        # Check current working directory for output first
         $compiledPath = Join-Path (Get-Location) $outputName
         
-        # Check if the file exists before attempting to upload
         if (Test-Path $compiledPath) {
-          echo "Found compiled executable at $compiledPath"
+          Write-Host "Found compiled executable at $compiledPath"
         } else {
-          # The compiler might place the output in a subdirectory, check in the tools directory as a common place
+          # If not found in root, check in the tools directory (common QB64 output location)
           $toolsPath = Join-Path (Get-Location) "tools\qb64pe_Windows_x64"
           $compiledPath = Join-Path $toolsPath $outputName
 
           if (Test-Path $compiledPath) {
-             echo "Found compiled executable at $compiledPath"
+             Write-Host "Found compiled executable at $compiledPath"
           } else {
-             # Fallback if the path is still unknown, you may need to check the compiler documentation
-             echo "Could not find the compiled executable $outputName. Check compiler settings."
+             Write-Host "Could not find the compiled executable $outputName."
              exit 1 
           }
         }
         
-        # Upload the artifact
         echo "::set-output name=artifact_path::$compiledPath"
       shell: powershell
-      id: find_artifact # Give this step an ID to reference its output
+      id: find_artifact
 
     - name: Upload compiled executable as artifact
+      if: success()
       uses: actions/upload-artifact@v4
       with:
         name: BasTo6809-Windows-x64
-        path: ${{ steps.find_artifact.outputs.artifact_path }} # Use the path found in the previous step
+        path: ${{ steps.find_artifact.outputs.artifact_path }}
