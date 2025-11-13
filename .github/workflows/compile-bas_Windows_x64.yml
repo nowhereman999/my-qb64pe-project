@@ -157,7 +157,6 @@ jobs:
         shell: pwsh
         run: |
           Set-Location "$env:ARTIFACTS_DIR"
-          # FIXED: Split into array
           $exes = "${{ steps.compile.outputs.executables }}" -split ' ' | Where-Object { $_ -ne '' }
           Compress-Archive -Path $exes -DestinationPath qb64pe_Windows_x64_executables.zip -Force
           Write-Host "Zipped $($exes.Count) executable(s)"
@@ -170,18 +169,22 @@ jobs:
           path: ${{ github.workspace }}\artifacts\qb64pe_Windows_x64_executables.zip
           retention-days: 30
 
-      - name: Job summons
+      - name: Job summary
         if: success()
         shell: pwsh
         run: |
           $summary = "## QB64-PE Windows x64 Build Complete`n"
           $summary += "Compiled **${{ steps.compile.outputs.compiled_count }}** program(s):`n`n"
+
+          # Use the output directly in PowerShell
           $executables = "${{ steps.compile.outputs.executables }}".Trim()
           if ($executables) {
-            $executables.Split(' ', [System.StringSplitOptions]::RemoveEmptyEntries) | ForEach-Object {
+            $executables -split ' ' | Where-Object { $_ -ne '' } | ForEach-Object {
               $summary += "- `$_`n"
             }
           }
+
           $summary += "`nDownload the zip from **Artifacts** below`n"
           $summary += "*These are native Windows x64 executables.*`n"
+
           $summary | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
