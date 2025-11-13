@@ -176,12 +176,14 @@ jobs:
           $summary = "## QB64-PE Windows x64 Build Complete`n"
           $summary += "Compiled **${{ steps.compile.outputs.compiled_count }}** program(s):`n`n"
 
-          # Use the output directly in PowerShell
-          $executables = "${{ steps.compile.outputs.executables }}".Trim()
-          if ($executables) {
-            $executables -split ' ' | Where-Object { $_ -ne '' } | ForEach-Object {
+          # FIXED: Use PowerShell loop with real variable
+          $exeList = "${{ steps.compile.outputs.executables }}".Trim()
+          if ($exeList) {
+            $exeList -split ' ' | Where-Object { $_ -ne '' } | ForEach-Object {
               $summary += "- `$_`n"
             }
+          } else {
+            $summary += "*No executables generated.*`n"
           }
 
           $summary += "`nDownload the zip from **Artifacts** below`n"
