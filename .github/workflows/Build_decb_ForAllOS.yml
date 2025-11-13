@@ -1,4 +1,4 @@
-name: Build Toolshed DECB (macOS_arm)
+name: Build DECB (macOS_arm)
 
 on: [push, pull_request]
 
@@ -12,6 +12,11 @@ jobs:
           curl -L https://github.com/n6il/toolshed/archive/refs/heads/master.tar.gz -o toolshed.tar.gz
           tar -xzf toolshed.tar.gz
 
+      - name: Build Required Libraries
+        run: |
+          cd toolshed-master
+          make -C build/unix libtoolshed libdecb libcoco librbf libmisc libnative libcecb libsys
+
       - name: Build DECB (Clean + Build)
         run: |
           cd toolshed-master
@@ -20,11 +25,10 @@ jobs:
 
       - name: Verify DECB Binary
         run: |
-          echo "=== Listing build directory ==="
-          ls -la toolshed-master/build/unix/decb/
-          echo "=== Binary info ==="
+          echo "=== DECB Binary ==="
+          ls -la toolshed-master/build/unix/decb/decb
           file toolshed-master/build/unix/decb/decb
-          echo "=== Test run ==="
+          echo "=== Test Run ==="
           toolshed-master/build/unix/decb/decb --help || echo "No --help, but binary exists"
 
       - name: Upload DECB Artifact
