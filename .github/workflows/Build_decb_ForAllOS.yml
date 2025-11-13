@@ -1,18 +1,10 @@
-name: Build DECB (Unix)
+name: Build Toolshed DECB (macOS_arm)
 
 on: [push, pull_request]
 
 jobs:
-  build:
-    strategy:
-      matrix:
-        config:
-          - { os: macos-latest, label: MacOS_arm }
-          - { os: macos-15-intel, label: MacOS_x86 }
-          - { os: ubuntu-latest, label: Linux_x86_64 }
-          - { os: ubuntu-22.04-arm, label: Linux_arm64 }
-
-    runs-on: ${{ matrix.config.os }}
+  build-macos-arm:
+    runs-on: macos-latest
 
     steps:
       - name: Download Toolshed source
@@ -28,10 +20,9 @@ jobs:
 
       - name: Verify DECB Binary
         run: |
-          echo "=== Platform: ${{ matrix.config.label }} ==="
-          echo "=== Build directory ==="
-          ls -la toolshed-master/build/unix/decb/decb
-          echo "=== Binary type ==="
+          echo "=== Listing build directory ==="
+          ls -la toolshed-master/build/unix/decb/
+          echo "=== Binary info ==="
           file toolshed-master/build/unix/decb/decb
           echo "=== Test run ==="
           toolshed-master/build/unix/decb/decb --help || echo "No --help, but binary exists"
@@ -39,11 +30,10 @@ jobs:
       - name: Upload DECB Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: decb-${{ matrix.config.label }}
+          name: decb-macos-arm64
           path: toolshed-master/build/unix/decb/decb
           retention-days: 5
 
-      - name: Remove Gatekeeper Quarantine (macOS only)
-        if: runner.os == 'macOS'
+      - name: Remove Gatekeeper Quarantine
         run: |
           xattr -d com.apple.quarantine toolshed-master/build/unix/decb/decb 2>/dev/null || true
