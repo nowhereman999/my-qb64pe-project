@@ -1,63 +1,62 @@
-name: Build DECB (Toolshed)
+name: Build Toolshed DECB (macOS_arm Debug)
 
 on: [push, pull_request]
 
 jobs:
-  build:
-    strategy:
-      matrix:
-        config:
-          - { os: macos-latest, arch: arm64, label: MacOS_arm }
-          - { os: macos-15-intel, arch: x86_64, label: MacOS_x86 }
-          - { os: ubuntu-latest, arch: x86_64, label: Linux_x86_64 }
-          - { os: ubuntu-22.04-arm, arch: arm64, label: Linux_arm64 }
-          - { os: windows-latest, arch: x64, label: Windows_x64 }
-
-    runs-on: ${{ matrix.config.os }}
-
+  debug-macos-arm:
+    runs-on: macos-latest
     steps:
-      - name: Set up MSYS2 on Windows
-        if: runner.os == 'Windows'
-        uses: msys2/setup-msys2@v2
-        with:
-          msystem: MINGW64
-          update: true
-          install: >-
-            base-devel
-            mingw-w64-x86_64-toolchain
-
-      - name: Checkout Toolshed source
-        uses: actions/checkout@v4
-        with:
-          repository: n6il/toolshed
-          path: toolshed
-
-      - name: Build DECB (Unix)
-        if: runner.os != 'Windows'
-        shell: bash
+      - name: Debug Step 1 - Checkout and List Environment
         run: |
-          cd toolshed/build/unix/decb
-          make
-          mkdir -p ../../../decb-bin
-          cp decb ../../../decb-bin/
+          echo "Runner OS: $RUNNER_OS"
+          echo "Runner Arch: $(uname -m)"
+          pwd
+          ls -la
 
-      - name: Build DECB (Windows)
-        if: runner.os == 'Windows'
-        shell: msys2 {0}
+      - name: Debug Step 2 - Download Toolshed source
         run: |
-          cd toolshed/build/win32/decb
-          mingw32-make
-          mkdir -p ../../../decb-bin
-          cp decb.exe ../../../decb-bin/
+          curl -L https://github.com/n6il/toolshed/archive/refs/heads/master.tar.gz -o toolshed.tar.gz
+          ls -la *.tar.gz
+          echo "Download complete"
 
-      - name: Bypass Gatekeeper on Built Binary (macOS)
-        if: runner.os == 'macOS'
+      - name: Debug Step 3 - Extract source
         run: |
-          xattr -dr com.apple.quarantine toolshed/decb-bin || true
+          tar -xzf toolshed.tar.gz
+          ls -la
+          echo "Extracted directory: $(ls -d toolshed-*)"
 
-      - name: Upload DECB Artifact
+      - name: Debug Step 4 - List project structure
+        run: |
+          find toolshed-master -type d -name "*build*" -o -name "decb" | head -10
+          ls -la toolshed-master/build/unix/ || echo "build/unix not found"
+          ls -la toolshed-master/build/unix/decb/ 2>/dev/null || echo "build/unix/decb not found"
+          ls -la toolshed-master/build/unix/Makefile 2>/dev/null || echo "No Makefile in build/unix"
+
+      - name: Debug Step 5 - Attempt build in build/unix/decb
+        run: |
+          cd toolshed-master
+          if [ -f build/unix/decb/Makefile ]; then
+            echo "Found Makefile in decb, running make"
+            cd build/unix/decb
+            make clean || echo "Clean failed or not needed"
+            make
+            ls -la *.*
+          else
+            echo "No Makefile in decb, trying parent build/unix"
+            cd build/unix
+            make decb || make
+            find . -name "decb*" -type f
+          fi
+
+      - name: Debug Step 6 - List all built files
+        if: always()
+        run: |
+          find toolshed-master -name "decb*" -type f -o -name "*decb*" -type f | head -10 || echo "No decb files found"
+
+      - name: Upload Debug Artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: decb-${{ matrix.config.label }}
-          path: toolshed/decb-bin
+          name: toolshed-macos-arm-debug
+          path: toolshed-master
           retention-days: 5
