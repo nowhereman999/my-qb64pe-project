@@ -108,14 +108,13 @@ jobs:
             Push-Location $dir
             Write-Host "`nCompiling (in $(Split-Path $relPath -Parent)): $filename -> $base.exe"
 
-            # FIXED: Use $null for NUL device
+            # REMOVED: -RedirectStandardInput (not needed)
             $process = Start-Process `
               -FilePath $env:QB64PE_EXE `
               -ArgumentList "-x", $filename, "-o", "$base.exe" `
               -Wait `
               -PassThru `
               -NoNewWindow `
-              -RedirectStandardInput $null `
               -RedirectStandardOutput "$env:TEMP\qb64pe_stdout.txt" `
               -RedirectStandardError "$env:TEMP\qb64pe_stderr.txt"
 
