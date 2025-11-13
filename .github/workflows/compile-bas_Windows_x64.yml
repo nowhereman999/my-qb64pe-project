@@ -1,4 +1,4 @@
-name: Compile BasTo6809 on Windows
+name: Compile BasTo6809 on Windows (CD Fix)
 
 on:
   push:
@@ -16,53 +16,47 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Add QB64-PE compiler binaries to PATH
-      # This step makes the MinGW/GCC executables available to all subsequent steps.
-      run: |
-        $compilerPath = Join-Path (Get-Location) "tools\qb64pe_Windows_x64\internal\c\c_compiler\bin"
-        echo "Adding $compilerPath to PATH"
-        # Append the path to the GITHUB_PATH environment file
-        echo "$compilerPath" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-      shell: powershell
+    # The previous PATH modification step is removed, as we will now 
+    # run the executable from its own directory.
 
     - name: Compile the QB64-PE program
       id: compile_qb64
-      # Removed continue-on-error: true here. If this fails, the job stops, 
-      # but we rely on the error message (and potentially the log file) 
-      # to diagnose issues.
-      run: |
-        $exePath = ".\tools\qb64pe_Windows_x64\qb64pe.exe"
-        $sourceFile = ".\BASIC-To-6809_Source_Code\BasTo6809.bas"
-        
-        # Now qb64pe.exe can find gcc.exe because the directory is in the PATH
-        & $exePath -x $sourceFile
       shell: powershell
+      run: |
+        # Define the directory where qb64pe.exe resides
+        $toolsDir = ".\tools\qb64pe_Windows_x64"
+        $sourceFile = "..\BASIC-To-6809_Source_Code\BasTo6809.bas"
+        $exeName = "qb64pe.exe"
+
+        # 1. Change the current directory to the tools directory
+        Set-Location -Path $toolsDir
+
+        # 2. Execute the compiler from within its correct environment
+        Write-Host "Compiling from CWD: $(Get-Location)"
+        & ".\$exeName" -x $sourceFile
 
     - name: Locate and upload compiled artifact
       # This step only runs if the compilation (previous step) was successful
       if: success()
+      shell: powershell
       run: |
         $outputName = "BasTo6809.exe"
-        # Check current working directory for output first
+        
+        # When compiled inside the tools directory, the EXE is likely created there.
+        # We need to find its absolute path to upload as an artifact.
+        $toolsDir = ".\tools\qb64pe_Windows_x64"
         $compiledPath = Join-Path (Get-Location) $outputName
-        
-        if (Test-Path $compiledPath) {
-          Write-Host "Found compiled executable at $compiledPath"
-        } else {
-          # If not found in root, check in the tools directory (common QB64 output location)
-          $toolsPath = Join-Path (Get-Location) "tools\qb64pe_Windows_x64"
-          $compiledPath = Join-Path $toolsPath $outputName
 
-          if (Test-Path $compiledPath) {
-             Write-Host "Found compiled executable at $compiledPath"
-          } else {
-             Write-Host "Could not find the compiled executable $outputName."
-             exit 1 
-          }
+        # Check if the file exists in the current directory (which is the tools directory for this step)
+        if (Test-Path $compiledPath) {
+            # Need to get the absolute path for the upload-artifact action
+            $absolutePath = (Get-Item $compiledPath).FullName
+            echo "Found compiled executable at $absolutePath"
+            echo "::set-output name=artifact_path::$absolutePath"
+        } else {
+            Write-Host "Could not find the compiled executable $outputName in the tools directory."
+            exit 1 
         }
-        
-        echo "::set-output name=artifact_path::$compiledPath"
-      shell: powershell
       id: find_artifact
 
     - name: Upload compiled executable as artifact
