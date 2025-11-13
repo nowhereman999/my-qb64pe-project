@@ -24,7 +24,7 @@ jobs:
       continue-on-error: true 
       run: |
         $toolsDir = ".\tools\qb64pe_Windows_x64"
-        $sourceFile = "..\BASIC-To-6809_Source_Code\BasTo6809.bas"
+        $sourceFile = "..\..\BASIC-To-6809_Source_Code\BasTo6809.bas"
         $exeName = "qb64pe.exe"
         $logPathRelative = ".\internal\temp\compilelog.txt"
 
