@@ -1,4 +1,4 @@
-name: Build Toolshed DECB
+name: Build DECB (Toolshed)
 
 on: [push, pull_request]
 
@@ -26,47 +26,38 @@ jobs:
             base-devel
             mingw-w64-x86_64-toolchain
 
-      - name: Download Toolshed source (Unix)
-        if: runner.os != 'Windows'
-        shell: bash
-        run: curl -L https://github.com/n6il/toolshed/archive/refs/heads/master.tar.gz -o toolshed.tar.gz
-
-      - name: Download Toolshed source (Windows)
-        if: runner.os == 'Windows'
-        shell: msys2 {0}
-        run: curl -L https://github.com/n6il/toolshed/archive/refs/heads/master.tar.gz -o toolshed.tar.gz
-
-      - name: Extract source (Unix)
-        if: runner.os != 'Windows'
-        shell: bash
-        run: tar -xzf toolshed.tar.gz
-
-      - name: Extract source (Windows)
-        if: runner.os == 'Windows'
-        shell: msys2 {0}
-        run: tar -xzf toolshed.tar.gz
+      - name: Checkout Toolshed source
+        uses: actions/checkout@v4
+        with:
+          repository: n6il/toolshed
+          path: toolshed
 
       - name: Build DECB (Unix)
         if: runner.os != 'Windows'
         shell: bash
         run: |
-          cd toolshed-master
-          cd build/unix/decb
+          cd toolshed/build/unix/decb
           make
+          mkdir -p ../../../decb-bin
+          cp decb ../../../decb-bin/
 
       - name: Build DECB (Windows)
         if: runner.os == 'Windows'
         shell: msys2 {0}
         run: |
-          cd toolshed-master
-          cd build/win32/decb
+          cd toolshed/build/win32/decb
           mingw32-make
+          mkdir -p ../../../decb-bin
+          cp decb.exe ../../../decb-bin/
 
-      - name: Upload Toolshed DECB Artifact
+      - name: Bypass Gatekeeper on Built Binary (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          xattr -dr com.apple.quarantine toolshed/decb-bin || true
+
+      - name: Upload DECB Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: toolshed-decb-${{ matrix.config.label }}
-          path: |
-            toolshed-master/build/unix/decb
-            toolshed-master/build/win32/decb
+          name: decb-${{ matrix.config.label }}
+          path: toolshed/decb-bin
           retention-days: 5
