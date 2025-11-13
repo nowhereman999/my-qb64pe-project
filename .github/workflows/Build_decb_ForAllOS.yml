@@ -1,0 +1,68 @@
+name: Build Toolshed (DECB)
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        config:
+          - { os: macos-latest, arch: arm64, label: MacOS_arm }
+          - { os: macos-15-intel, arch: x86_64, label: MacOS_x86 }
+          - { os: ubuntu-latest, arch: x86_64, label: Linux_x86_64 }
+          - { os: ubuntu-22.04-arm, arch: arm64, label: Linux_arm64 }
+          - { os: windows-latest, arch: x64, label: Windows_x64 }
+
+    runs-on: ${{ matrix.config.os }}
+
+    steps:
+      - name: Set up MSYS2 on Windows
+        if: runner.os == 'Windows'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            base-devel
+            mingw-w64-x86_64-toolchain
+
+      - name: Download Toolshed source (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: curl -L https://github.com/n6il/toolshed/archive/refs/heads/master.tar.gz -o toolshed.tar.gz
+
+      - name: Download Toolshed source (Windows)
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        run: curl -L https://github.com/n6il/toolshed/archive/refs/heads/master.tar.gz -o toolshed.tar.gz
+
+      - name: Extract source (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: tar -xzf toolshed.tar.gz
+
+      - name: Extract source (Windows)
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        run: tar -xzf toolshed.tar.gz
+
+      - name: Build Toolshed (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          cd toolshed-master
+          make -C build/unix install
+
+      - name: Build Toolshed (Windows)
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        run: |
+          cd toolshed-master
+          make -C build/unix install CC=gcc
+
+      - name: Upload Toolshed Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: toolshed-${{ matrix.config.label }}
+          path: toolshed-master
+          retention-days: 5
