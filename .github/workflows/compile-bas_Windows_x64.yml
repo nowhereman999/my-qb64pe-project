@@ -1,4 +1,4 @@
-name: Compile BasTo6809 on Windows (Find Log)
+name: Compile BasTo6809 on Windows (Refined)
 
 on:
   push:
@@ -11,41 +11,41 @@ on:
 jobs:
   build:
     runs-on: windows-latest
+    env:
+      TOOLS_DIR_REL: tools\qb64pe_Windows_x64
+      SOURCE_FILE_REL: BASIC-To-6809_Source_Code\BasTo6809.bas
+      OUTPUT_EXE_NAME: BasTo6809.exe
 
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    # Removed the choco install steps for clarity, assuming the CWD fix is the primary issue.
-    # If the log output shows a dependency error, we can add them back.
-
-    - name: Compile the QB64-PE program (attempt)
+    - name: Compile the QB64-PE program and capture status
       id: compile_qb64_attempt
       shell: powershell
-      # Use 'continue-on-error' so we can always execute the next step to find the log
-      continue-on-error: true 
+      continue-on-error: true
       run: |
-        $toolsDir = ".\tools\qb64pe_Windows_x64"
-        $sourceFile = "..\..\BASIC-To-6809_Source_Code\BasTo6809.bas"
-        $exeName = "qb64pe.exe"
+        # Set absolute paths for clarity
+        $toolsDir = Join-Path $env:GITHUB_WORKSPACE $env:TOOLS_DIR_REL
+        $sourceFile = Join-Path $env:GITHUB_WORKSPACE $env:SOURCE_FILE_REL
+        $exePath = Join-Path $toolsDir qb64pe.exe
 
-        # Change the current directory to the tools directory
+        # Change directory to the tools folder where qb64pe.exe resides
         Set-Location -Path $toolsDir
         Write-Host "Compiling from CWD: $(Get-Location)"
 
         # Execute the compiler
-        & ".\$exeName" -x $sourceFile
-
-        # Change directory back to the repository root for subsequent steps
-        Set-Location -Path (Get-Item WsDir).FullName 
+        & $exePath -x $sourceFile
+        # The script exits here with the compiler's error code (0 for success, 1 for failure)
+      
+      # We do NOT change directory back here, as this script exits when finished
 
     - name: Locate and Display compilelog.txt
       # This step runs regardless of whether the compile step succeeded or failed.
       run: |
-        Write-Host "Searching for compilelog.txt across the entire repository..."
-        
-        # Recursively find the file anywhere in the repository folder (D:\a\...)
-        $logFile = Get-ChildItem -Path . -Recurse -Filter "compilelog.txt" -ErrorAction SilentlyContinue | Select-Object -First 1
+        Write-Host "Searching for compilelog.txt..."
+        # Search relative to the tools directory, as that was the last CWD
+        $logFile = Get-ChildItem -Path $env:TOOLS_DIR_REL -Recurse -Filter "compilelog.txt" -ErrorAction SilentlyContinue | Select-Object -First 1
 
         if ($logFile) {
             Write-Host "--- Found compilelog.txt at $($logFile.FullName) ---"
@@ -53,34 +53,31 @@ jobs:
             Get-Content $logFile.FullName
             Write-Host "--- End of compilelog.txt content ---"
         } else {
-            Write-Host "ERROR: Could not find compilelog.txt anywhere in the working directory."
-            # We must fail the job if we can't diagnose the error
+            Write-Host "ERROR: Could not find compilelog.txt."
             exit 1 
         }
       shell: powershell
 
     - name: Check compilation status and fail job if needed
-      # We rely on the exit code of the first step to know if it actually worked
+      # Check the outcome of the first step
       if: steps.compile_qb64_attempt.outcome == 'failure'
       run: |
-        echo "Compilation failed. Check the 'Locate and Display compilelog.txt' step for specific C++ errors."
+        echo "Compilation failed. The compilelog.txt shows POSIX paths being used which indicates a non-Windows compiler configuration."
         exit 1 # Force the GitHub job to fail permanently
 
-    # The artifact steps only run if the overall outcome is success
-    - name: Locate and upload compiled artifact
+    - name: Locate compiled artifact
       if: success()
       id: find_artifact
       shell: powershell
       run: |
-        $outputName = "BasTo6809.exe"
-        $toolsDir = ".\tools\qb64pe_Windows_x64"
-        $compiledPath = Join-Path $toolsDir $outputName
-
+        # Search for the output EXE within the tools directory
+        $compiledPath = Join-Path $env:TOOLS_DIR_REL $env:OUTPUT_EXE_NAME
+        
         if (Test-Path $compiledPath) {
             $absolutePath = (Get-Item $compiledPath).FullName
             echo "::set-output name=artifact_path::$absolutePath"
         } else {
-            Write-Host "Could not find the compiled executable $outputName."
+            Write-Host "Could not find the compiled executable $($env:OUTPUT_EXE_NAME)."
             exit 1 
         }
 
