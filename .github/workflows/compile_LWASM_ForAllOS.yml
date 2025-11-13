@@ -1,0 +1,48 @@
+name: Build LWTOOLS
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        config:
+          - { os: macos-latest, arch: arm64, label: MacOS_arm }
+          - { os: macos-13, arch: x86_64, label: MacOS_x86 }
+          - { os: ubuntu-latest, arch: x86_64, label: Linux_x86_64 }
+          - { os: ubuntu-22.04-arm, arch: arm64, label: Linux_arm64 }
+          - { os: windows-latest, arch: x64, label: Windows_x64 }
+
+    runs-on: ${{ matrix.config.os }}
+
+    steps:
+      - name: Set up MSYS2 on Windows
+        if: runner.os == 'Windows'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-make
+
+      - name: Download LWTOOLS source
+        shell: ${{ runner.os == 'Windows' && 'msys2 {0}' || 'bash' }}
+        run: curl -L https://www.lwtools.ca/releases/lwtools/lwtools-4.24.tar.gz -o lwtools.tar.gz
+
+      - name: Extract source
+        shell: ${{ runner.os == 'Windows' && 'msys2 {0}' || 'bash' }}
+        run: tar -xzf lwtools.tar.gz
+
+      - name: Build LWTOOLS
+        shell: ${{ runner.os == 'Windows' && 'msys2 {0}' || 'bash' }}
+        run: |
+          cd lwtools-4.24
+          make
+
+      - name: Upload LWTOOLS Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lwtools-${{ matrix.config.label }}
+          path: lwtools-4.24
+          retention-days: 5
