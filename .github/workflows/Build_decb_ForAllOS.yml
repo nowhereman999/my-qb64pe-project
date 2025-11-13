@@ -1,40 +1,74 @@
-name: Build DECB (macOS_arm)
+name: Build DECB
 
 on: [push, pull_request]
 
 jobs:
-  build-macos-arm:
-    runs-on: macos-latest
+  build:
+    strategy:
+      matrix:
+        config:
+          - { os: macos-latest, arch: arm64, label: MacOS_arm, build_dir: unix, make: make, binary: decb }
+          - { os: macos-15-intel, arch: x86_64, label: MacOS_x86, build_dir: unix, make: make, binary: decb }
+          - { os: ubuntu-latest, arch: x86_64, label: Linux_x86_64, build_dir: unix, make: make, binary: decb }
+          - { os: ubuntu-22.04-arm, arch: arm64, label: Linux_arm64, build_dir: unix, make: make, binary: decb }
+          - { os: windows-latest, arch: x64, label: Windows_x64, build_dir: win32, make: mingw32-make, binary: decb.exe }
+
+    runs-on: ${{ matrix.config.os }}
 
     steps:
-      - name: Download Toolshed source
+      - name: Set up MSYS2 on Windows
+        if: runner.os == 'Windows'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            base-devel
+            mingw-w64-x86_64-toolchain
+
+      - name: Download Toolshed source (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
         run: |
           curl -L https://github.com/n6il/toolshed/archive/refs/heads/master.tar.gz -o toolshed.tar.gz
           tar -xzf toolshed.tar.gz
 
-      - name: Build Libraries and DECB
+      - name: Download Toolshed source (Windows)
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
         run: |
-          cd toolshed-master/build/unix
-          for lib in libtoolshed libdecb libcoco librbf libmisc libnative libcecb libsys; do
-            (cd $lib; make clean; make)
-          done
-          (cd decb; make clean; make)
+          curl -L https://github.com/n6il/toolshed/archive/refs/heads/master.tar.gz -o toolshed.tar.gz
+          tar -xzf toolshed.tar.gz
 
-      - name: Verify DECB Binary
+      - name: Build Libraries and DECB (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
         run: |
-          echo "=== DECB Binary ==="
-          ls -la toolshed-master/build/unix/decb/decb
-          file toolshed-master/build/unix/decb/decb
-          echo "=== Test Run ==="
-          toolshed-master/build/unix/decb/decb --help || echo "No --help, but binary exists"
+          cd toolshed-master/build/${{ matrix.config.build_dir }}
+          for lib in libtoolshed libdecb libcoco librbf libmisc libnative libcecb libsys; do
+            (cd $lib; ${{ matrix.config.make }} clean; ${{ matrix.config.make }})
+          done
+          (cd decb; ${{ matrix.config.make }} clean; ${{ matrix.config.make }})
+
+      - name: Build Libraries and DECB (Windows)
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        run: |
+          cd toolshed-master/build/${{ matrix.config.build_dir }}
+          for lib in libtoolshed libdecb libcoco librbf libmisc libnative libcecb libsys; do
+            (cd $lib; ${{ matrix.config.make }} clean; ${{ matrix.config.make }})
+          done
+          (cd decb; ${{ matrix.config.make }} clean; ${{ matrix.config.make }})
 
       - name: Upload DECB Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: decb-macos-arm64
-          path: toolshed-master/build/unix/decb/decb
+          name: decb-${{ matrix.config.label }}
+          path: toolshed-master/build/${{ matrix.config.build_dir }}/decb/${{ matrix.config.binary }}
           retention-days: 5
 
-      - name: Remove Gatekeeper Quarantine
+      - name: Remove Gatekeeper Quarantine (macOS only)
+        if: runner.os == 'macOS'
+        shell: bash
         run: |
           xattr -d com.apple.quarantine toolshed-master/build/unix/decb/decb 2>/dev/null || true
