@@ -109,9 +109,15 @@ jobs:
             Push-Location $dir
             Write-Host "Compiling (in $(Split-Path $relPath -Parent)): $filename -> $base.exe"
 
-            $process = Start-Process -FilePath $env:QB64PE_EXE -ArgumentList "-x", $filename, "-o", "$base.exe" -Wait -PassThru -NoNewWindow
+            # Use cmd /c with input redirection to prevent GUI/console hang
+            $cmd = "cmd /c `"`"$env:QB64PE_EXE`" -x `"$filename`" -o `"$base.exe`" < nul`""
+            $result = Invoke-Expression $cmd
+            $exitCode = $LASTEXITCODE
 
-            if ($process.ExitCode -ne 0) {
+            # Optional: print QB64-PE output for debugging
+            if ($result) { Write-Host $result }
+
+            if ($exitCode -ne 0) {
               $logPath = "$qb64peDir\internal\temp\compilelog.txt"
               Write-Host "=== COMPILATION ERROR ==="
               if (Test-Path $logPath) {
@@ -158,15 +164,12 @@ jobs:
         run: |
           $summary = "## QB64-PE Windows x64 Build Complete`n"
           $summary += "Compiled **${{ steps.compile.outputs.compiled_count }}** program(s):`n`n"
-
           $executables = "${{ steps.compile.outputs.executables }}".Trim()
           if ($executables) {
             $executables.Split(' ', [System.StringSplitOptions]::RemoveEmptyEntries) | ForEach-Object {
               $summary += "- `$_`n"
             }
           }
-
           $summary += "`nDownload the zip from **Artifacts** below`n"
           $summary += "*These are native Windows x64 executables.*`n"
-
           $summary | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
