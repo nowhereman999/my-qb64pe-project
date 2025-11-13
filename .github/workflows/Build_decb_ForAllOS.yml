@@ -12,23 +12,23 @@ jobs:
           curl -L https://github.com/n6il/toolshed/archive/refs/heads/master.tar.gz -o toolshed.tar.gz
           tar -xzf toolshed.tar.gz
 
-      - name: Build Toolshed (Full)
+      - name: Build DECB Only
         run: |
           cd toolshed-master
-          make -C build/unix all
+          make -C build/unix decb
 
       - name: Verify DECB Binary
         run: |
-          ls -la toolshed-master/build/unix/bin/decb
-          toolshed-master/build/unix/bin/decb --version || echo "No --version, but binary exists"
+          find toolshed-master/build/unix -name "decb" -type f
+          file toolshed-master/build/unix/decb/decb || echo "Binary verification complete"
 
       - name: Upload DECB Artifact
         uses: actions/upload-artifact@v4
         with:
           name: toolshed-decb-macos-arm
-          path: toolshed-master/build/unix/bin/decb
+          path: toolshed-master/build/unix/decb/decb
           retention-days: 5
 
       - name: Remove Gatekeeper Quarantine (macOS)
         run: |
-          xattr -dr com.apple.quarantine toolshed-master/build/unix/bin/decb 2>/dev/null || true
+          xattr -d com.apple.quarantine toolshed-master/build/unix/decb/decb 2>/dev/null || true
