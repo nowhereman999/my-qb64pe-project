@@ -1,4 +1,4 @@
-name: Compile BasTo6809 on Windows (CD Fix)
+name: Compile BasTo6809 on Windows (Debug)
 
 on:
   push:
@@ -10,57 +10,72 @@ on:
 
 jobs:
   build:
-    runs-on: windows-2022
+    runs-on: windows-latest
 
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    # The previous PATH modification step is removed, as we will now 
-    # run the executable from its own directory.
-
-    - name: Compile the QB64-PE program
-      id: compile_qb64
+    - name: Compile the QB64-PE program and display log
+      id: compile_qb64_debug
       shell: powershell
+      # Use 'continue-on-error' so the workflow proceeds to display the log, 
+      # but we will manually check the outcome later.
+      continue-on-error: true 
       run: |
-        # Define the directory where qb64pe.exe resides
         $toolsDir = ".\tools\qb64pe_Windows_x64"
-        $sourceFile = "..\..\BASIC-To-6809_Source_Code\BasTo6809.bas"
+        $sourceFile = "..\BASIC-To-6809_Source_Code\BasTo6809.bas"
         $exeName = "qb64pe.exe"
+        $logPathRelative = ".\internal\temp\compilelog.txt"
 
-        # 1. Change the current directory to the tools directory
+        # Change the current directory to the tools directory
         Set-Location -Path $toolsDir
-
-        # 2. Execute the compiler from within its correct environment
         Write-Host "Compiling from CWD: $(Get-Location)"
+
+        # Execute the compiler
         & ".\$exeName" -x $sourceFile
 
+        # Change directory back to the repository root for artifact handling
+        Set-Location -Path (Get-Item WsDir).FullName 
+
+        # Display the log file content regardless of error outcome
+        $logPathAbsolute = Join-Path $toolsDir $logPathRelative
+        if (Test-Path $logPathAbsolute) {
+            Write-Host "--- Start of compilelog.txt (Absolute Path: $logPathAbsolute) ---"
+            Get-Content $logPathAbsolute
+            Write-Host "--- End of compilelog.txt ---"
+        } else {
+            Write-Host "ERROR: compilelog.txt not found at $logPathAbsolute"
+            exit 1 # Fail the job if log isn't even created
+        }
+
+    # Stop the workflow here if the compilation step failed (exit code 1)
+    - name: Check compilation status
+      if: steps.compile_qb64_debug.outcome == 'failure'
+      run: |
+        echo "Compilation failed. Check the 'Compile the QB64-PE program and display log' step output for C++ errors."
+        exit 1
+
+    # The steps below only run if the above check passes (i.e. if the compilation succeeded)
     - name: Locate and upload compiled artifact
-      # This step only runs if the compilation (previous step) was successful
-      if: success()
+      id: find_artifact
       shell: powershell
       run: |
         $outputName = "BasTo6809.exe"
-        
-        # When compiled inside the tools directory, the EXE is likely created there.
-        # We need to find its absolute path to upload as an artifact.
         $toolsDir = ".\tools\qb64pe_Windows_x64"
-        $compiledPath = Join-Path (Get-Location) $outputName
+        # Since we changed back to the root dir above, this path is correct again
+        $compiledPath = Join-Path $toolsDir $outputName
 
-        # Check if the file exists in the current directory (which is the tools directory for this step)
         if (Test-Path $compiledPath) {
-            # Need to get the absolute path for the upload-artifact action
             $absolutePath = (Get-Item $compiledPath).FullName
             echo "Found compiled executable at $absolutePath"
             echo "::set-output name=artifact_path::$absolutePath"
         } else {
-            Write-Host "Could not find the compiled executable $outputName in the tools directory."
+            Write-Host "Could not find the compiled executable $outputName."
             exit 1 
         }
-      id: find_artifact
 
     - name: Upload compiled executable as artifact
-      if: success()
       uses: actions/upload-artifact@v4
       with:
         name: BasTo6809-Windows-x64
