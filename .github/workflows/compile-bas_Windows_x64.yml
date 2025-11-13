@@ -25,7 +25,7 @@ jobs:
       run: |
         # Define the directory where qb64pe.exe resides
         $toolsDir = ".\tools\qb64pe_Windows_x64"
-        $sourceFile = "..\BASIC-To-6809_Source_Code\BasTo6809.bas"
+        $sourceFile = "..\..\BASIC-To-6809_Source_Code\BasTo6809.bas"
         $exeName = "qb64pe.exe"
 
         # 1. Change the current directory to the tools directory
