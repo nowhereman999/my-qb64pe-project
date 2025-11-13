@@ -1,2 +1,6 @@
 # this file needs to be changed to simply get the version 4.1 of qb64pe from github and store the downloaded files
 # into this folder, as they are (no compiling of qb64pe is needed for windows)
+# Get and download it here:
+# https://github.com/QB64-Phoenix-Edition/QB64pe/releases/tag/v4.1.0
+#
+# Copy the files and folders to the same folder as this file
