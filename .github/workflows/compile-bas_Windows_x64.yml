@@ -70,12 +70,10 @@ jobs:
           if ($env:INPUT_BAS_PATHS) {
             $filesToCompile = $env:INPUT_BAS_PATHS -split ',' | ForEach-Object { $_.Trim() }
           } else {
-            # Auto-detect all .bas/.BAS in root
             $rootFiles = Get-ChildItem -Path $rootDir -File | Where-Object {
               $_.Extension -match '^\.[bB][aA][sS]$'
             } | ForEach-Object { $_.FullName.Substring($env:GITHUB_WORKSPACE.Length + 1) }
 
-            # Always include SDECB if exists
             $sdecbPath = $null
             @("IDE\SDECB.bas", "IDE\SDECB.BAS") | ForEach-Object {
               $p = Join-Path $rootDir $_
@@ -86,7 +84,6 @@ jobs:
             if ($sdecbPath) { $filesToCompile += $sdecbPath }
           }
 
-          # Deduplicate
           $filesToCompile = $filesToCompile | Sort-Object -Unique
           if ($filesToCompile.Count -eq 0) {
             Write-Host "No .bas files to compile."
@@ -110,7 +107,7 @@ jobs:
             $base = [System.IO.Path]::GetFileNameWithoutExtension($filename)
 
             Push-Location $dir
-            Write-Host "Compiling (in $(Split-Path $relPath -Parent)): $filename → $base.exe"
+            Write-Host "Compiling (in $(Split-Path $relPath -Parent)): $filename -> $base.exe"
 
             $process = Start-Process -FilePath $env:QB64PE_EXE -ArgumentList "-x", $filename, "-o", "$base.exe" -Wait -PassThru -NoNewWindow
 
@@ -159,21 +156,17 @@ jobs:
         if: success()
         shell: pwsh
         run: |
-          $summary = @"
-## QB64-PE Windows x64 Build Complete
+          $summary = "## QB64-PE Windows x64 Build Complete`n"
+          $summary += "Compiled **${{ steps.compile.outputs.compiled_count }}** program(s):`n`n"
 
-Compiled **${{ steps.compile.outputs.compiled_count }}** program(s):
-
-"@
-
-          foreach ($exe in "${{ steps.compile.outputs.executables }}".Split(' ', [System.StringSplitOptions]::RemoveEmptyEntries)) {
-            $summary += "`n- `$exe`"
+          $executables = "${{ steps.compile.outputs.executables }}".Trim()
+          if ($executables) {
+            $executables.Split(' ', [System.StringSplitOptions]::RemoveEmptyEntries) | ForEach-Object {
+              $summary += "- `$_`n"
+            }
           }
 
-          $summary += @"
-
-Download the zip from **Artifacts** below
-*These are native Windows x64 executables.*
-"@
+          $summary += "`nDownload the zip from **Artifacts** below`n"
+          $summary += "*These are native Windows x64 executables.*`n"
 
           $summary | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
