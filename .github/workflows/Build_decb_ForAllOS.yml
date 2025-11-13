@@ -26,6 +26,16 @@ jobs:
           make -C build/unix/decb clean
           make -C build/unix/decb
 
+      - name: Verify DECB Binary
+        run: |
+          echo "=== Platform: ${{ matrix.config.label }} ==="
+          echo "=== Build directory ==="
+          ls -la toolshed-master/build/unix/decb/decb
+          echo "=== Binary type ==="
+          file toolshed-master/build/unix/decb/decb
+          echo "=== Test run ==="
+          toolshed-master/build/unix/decb/decb --help || echo "No --help, but binary exists"
+
       - name: Upload DECB Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -35,43 +45,5 @@ jobs:
 
       - name: Remove Gatekeeper Quarantine (macOS only)
         if: runner.os == 'macOS'
-        run: |
-          xattr -d com.apple.quarantine toolshed-master/build/unix/decb/decb 2>/dev/null || truename: Build Toolshed DECB (macOS_arm)
-
-on: [push, pull_request]
-
-jobs:
-  build-macos-arm:
-    runs-on: macos-latest
-
-    steps:
-      - name: Download Toolshed source
-        run: |
-          curl -L https://github.com/n6il/toolshed/archive/refs/heads/master.tar.gz -o toolshed.tar.gz
-          tar -xzf toolshed.tar.gz
-
-      - name: Build DECB (Clean + Build)
-        run: |
-          cd toolshed-master
-          make -C build/unix/decb clean
-          make -C build/unix/decb
-
-      - name: Verify DECB Binary
-        run: |
-          echo "=== Listing build directory ==="
-          ls -la toolshed-master/build/unix/decb/
-          echo "=== Binary info ==="
-          file toolshed-master/build/unix/decb/decb
-          echo "=== Test run ==="
-          toolshed-master/build/unix/decb/decb --help || echo "No --help, but binary exists"
-
-      - name: Upload DECB Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: decb-macos-arm64
-          path: toolshed-master/build/unix/decb/decb
-          retention-days: 5
-
-      - name: Remove Gatekeeper Quarantine
         run: |
           xattr -d com.apple.quarantine toolshed-master/build/unix/decb/decb 2>/dev/null || true
