@@ -1,62 +1,34 @@
-name: Build Toolshed DECB (macOS_arm Debug)
+name: Build Toolshed DECB (macOS_arm)
 
 on: [push, pull_request]
 
 jobs:
-  debug-macos-arm:
+  build-macos-arm:
     runs-on: macos-latest
-    steps:
-      - name: Debug Step 1 - Checkout and List Environment
-        run: |
-          echo "Runner OS: $RUNNER_OS"
-          echo "Runner Arch: $(uname -m)"
-          pwd
-          ls -la
 
-      - name: Debug Step 2 - Download Toolshed source
+    steps:
+      - name: Download Toolshed source
         run: |
           curl -L https://github.com/n6il/toolshed/archive/refs/heads/master.tar.gz -o toolshed.tar.gz
-          ls -la *.tar.gz
-          echo "Download complete"
-
-      - name: Debug Step 3 - Extract source
-        run: |
           tar -xzf toolshed.tar.gz
-          ls -la
-          echo "Extracted directory: $(ls -d toolshed-*)"
 
-      - name: Debug Step 4 - List project structure
-        run: |
-          find toolshed-master -type d -name "*build*" -o -name "decb" | head -10
-          ls -la toolshed-master/build/unix/ || echo "build/unix not found"
-          ls -la toolshed-master/build/unix/decb/ 2>/dev/null || echo "build/unix/decb not found"
-          ls -la toolshed-master/build/unix/Makefile 2>/dev/null || echo "No Makefile in build/unix"
-
-      - name: Debug Step 5 - Attempt build in build/unix/decb
+      - name: Build Toolshed (Full)
         run: |
           cd toolshed-master
-          if [ -f build/unix/decb/Makefile ]; then
-            echo "Found Makefile in decb, running make"
-            cd build/unix/decb
-            make clean || echo "Clean failed or not needed"
-            make
-            ls -la *.*
-          else
-            echo "No Makefile in decb, trying parent build/unix"
-            cd build/unix
-            make decb || make
-            find . -name "decb*" -type f
-          fi
+          make -C build/unix all
 
-      - name: Debug Step 6 - List all built files
-        if: always()
+      - name: Verify DECB Binary
         run: |
-          find toolshed-master -name "decb*" -type f -o -name "*decb*" -type f | head -10 || echo "No decb files found"
+          ls -la toolshed-master/build/unix/bin/decb
+          toolshed-master/build/unix/bin/decb --version || echo "No --version, but binary exists"
 
-      - name: Upload Debug Artifact
-        if: always()
+      - name: Upload DECB Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: toolshed-macos-arm-debug
-          path: toolshed-master
+          name: toolshed-decb-macos-arm
+          path: toolshed-master/build/unix/bin/decb
           retention-days: 5
+
+      - name: Remove Gatekeeper Quarantine (macOS)
+        run: |
+          xattr -dr com.apple.quarantine toolshed-master/build/unix/bin/decb 2>/dev/null || true
