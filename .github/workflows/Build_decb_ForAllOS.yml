@@ -7,11 +7,11 @@ jobs:
     strategy:
       matrix:
         config:
-          - { os: macos-latest, arch: arm64, label: MacOS_arm, build_dir: unix, make: make, binary: decb }
-          - { os: macos-15-intel, arch: x86_64, label: MacOS_x86, build_dir: unix, make: make, binary: decb }
-          - { os: ubuntu-latest, arch: x86_64, label: Linux_x86_64, build_dir: unix, make: make, binary: decb }
-          - { os: ubuntu-22.04-arm, arch: arm64, label: Linux_arm64, build_dir: unix, make: make, binary: decb }
-          - { os: windows-latest, arch: x64, label: Windows_x64, build_dir: win32, make: mingw32-make, binary: decb.exe }
+          - { os: macos-latest, arch: arm64, label: MacOS_arm, build_dir: unix, make: make, vars: '', binary: decb }
+          - { os: macos-15-intel, arch: x86_64, label: MacOS_x86, build_dir: unix, make: make, vars: '', binary: decb }
+          - { os: ubuntu-latest, arch: x86_64, label: Linux_x86_64, build_dir: unix, make: make, vars: '', binary: decb }
+          - { os: ubuntu-22.04-arm, arch: arm64, label: Linux_arm64, build_dir: unix, make: make, vars: '', binary: decb }
+          - { os: windows-latest, arch: x64, label: Windows_x64, build_dir: win32, make: mingw32-make, vars: 'TOOLSHED_VERSION=2.2', binary: decb.exe }
 
     runs-on: ${{ matrix.config.os }}
 
@@ -52,9 +52,9 @@ jobs:
         run: |
           cd toolshed-master/build/${{ matrix.config.build_dir }}
           for lib in libtoolshed libdecb libcoco librbf libmisc libnative libcecb libsys; do
-            (cd $lib; ${{ matrix.config.make }} clean; ${{ matrix.config.make }})
+            (cd $lib; ${{ matrix.config.make }} clean; ${{ matrix.config.make }} ${{ matrix.config.vars }})
           done
-          (cd decb; ${{ matrix.config.make }} clean; ${{ matrix.config.make }})
+          (cd decb; ${{ matrix.config.make }} clean; ${{ matrix.config.make }} ${{ matrix.config.vars }})
 
       - name: Build Libraries and DECB (Windows)
         if: runner.os == 'Windows'
@@ -62,9 +62,9 @@ jobs:
         run: |
           cd toolshed-master/build/${{ matrix.config.build_dir }}
           for lib in libtoolshed libdecb libcoco librbf libmisc libnative libcecb libsys; do
-            (cd $lib; ${{ matrix.config.make }} clean; ${{ matrix.config.make }})
+            (cd $lib; ${{ matrix.config.make }} clean; ${{ matrix.config.make }} ${{ matrix.config.vars }})
           done
-          (cd decb; ${{ matrix.config.make }} clean; ${{ matrix.config.make }})
+          (cd decb; ${{ matrix.config.make }} clean; ${{ matrix.config.make }} ${{ matrix.config.vars }})
 
       - name: Upload DECB Artifact
         uses: actions/upload-artifact@v4
