@@ -11,7 +11,7 @@ jobs:
           - { os: macos-15-intel, arch: x86_64, label: MacOS_x86, build_dir: unix, make: make, cc: '', vars: '', binary: decb }
           - { os: ubuntu-latest, arch: x86_64, label: Linux_x86_64, build_dir: unix, make: make, cc: '', vars: '', binary: decb }
           - { os: ubuntu-22.04-arm, arch: arm64, label: Linux_arm64, build_dir: unix, make: make, cc: '', vars: '', binary: decb }
-          - { os: windows-latest, arch: x64, label: Windows_x64, build_dir: win32, make: mingw32-make, cc: 'CC=gcc', vars: 'CFLAGS="-DTOOLSHED_VERSION=\\\"2.2\\\""', binary: decb.exe }
+          - { os: windows-latest, arch: x64, label: Windows_x64, build_dir: win32, make: mingw32-make, cc: 'CC=gcc', vars: 'CFLAGS="-I../../../include -DTOOLSHED_VERSION=\\\"2.2\\\""', binary: decb.exe }
 
     runs-on: ${{ matrix.config.os }}
 
@@ -39,6 +39,12 @@ jobs:
         run: |
           curl -L https://github.com/n6il/toolshed/archive/refs/heads/master.tar.gz -o toolshed.tar.gz
           tar -xzf toolshed.tar.gz
+
+      - name: Patch for MinGW (Windows)
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        run: |
+          sed -i '1i #include <direct.h>' toolshed-master/libnative/libnativemakdir.c
 
       - name: Build Libraries and DECB (Unix)
         if: runner.os != 'Windows'
