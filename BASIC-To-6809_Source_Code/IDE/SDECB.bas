@@ -965,7 +965,7 @@ If C = 9 Then 'run
             Shell ExecuteLine$
 
             If os$ = "WIN" Then
-                Shell _Hide _DontWait "del " + QuotedFilename$(Chr$(34) + lastBinaryGenerated$ + Chr$(34)) 'kill it
+                Shell _Hide _DontWait "del " + QuotedFilename$(Chr$(34) + lastBinaryGenerated$ + Chr$(34)) ' kill it
             End If
             If path.exe$ = "" Then path.exe$ = "./"
             If os$ = "LNX" Then

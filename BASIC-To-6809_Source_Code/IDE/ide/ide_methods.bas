@@ -1761,7 +1761,7 @@ FUNCTION ide2 (ignore)
                 SDECB_command$ = "make defaultF11 FILE=" + ideprogname$ + " FILENOEXT=" + RemoveFileExtension$(ideprogname$)
             ELSE
                 ' ---- WINDOWS ----
-                SDECB_command$ = "compile.bat defaultF11 FILE=" + ideprogname$ + " FILENOEXT=" + RemoveFileExtension$(ideprogname$)
+                SDECB_command$ = "compile.bat defaultF11 " + ideprogname$ + " " + RemoveFileExtension$(ideprogname$)
             END IF
 
             idemexe:
@@ -6197,7 +6197,7 @@ FUNCTION ide2 (ignore)
                     SDECB_command$ = "make defaultF11 FILE=" + ideprogname$ + " FILENOEXT=" + RemoveFileExtension$(ideprogname$)
                 ELSE
                     ' ---- WINDOWS ----
-                    SDECB_command$ = "compile.bat defaultF11 FILE=" + ideprogname$ + " FILENOEXT=" + RemoveFileExtension$(ideprogname$)
+                    SDECB_command$ = "compile.bat defaultF11 " + ideprogname$ + " " + RemoveFileExtension$(ideprogname$)
                 END IF
                 GOTO idemexe
             END IF
@@ -6209,7 +6209,7 @@ FUNCTION ide2 (ignore)
                     SDECB_command$ = "make Command1 FILE=" + ideprogname$ + " FILENOEXT=" + RemoveFileExtension$(ideprogname$)
                 ELSE
                     ' ---- WINDOWS ----
-                    SDECB_command$ = "compile.bat Command1 FILE=" + ideprogname$ + " FILENOEXT=" + RemoveFileExtension$(ideprogname$)
+                    SDECB_command$ = "compile.bat Command1 " + ideprogname$ + " " + RemoveFileExtension$(ideprogname$)
                 END IF
                 GOTO idemexe
             END IF
@@ -6220,7 +6220,7 @@ FUNCTION ide2 (ignore)
                     SDECB_command$ = "make Command2 FILE=" + ideprogname$ + " FILENOEXT=" + RemoveFileExtension$(ideprogname$)
                 ELSE
                     ' ---- WINDOWS ----
-                    SDECB_command$ = "compile.bat Command2 FILE=" + ideprogname$ + " FILENOEXT=" + RemoveFileExtension$(ideprogname$)
+                    SDECB_command$ = "compile.bat Command2 " + ideprogname$ + " " + RemoveFileExtension$(ideprogname$)
                 END IF
                 GOTO idemexe
             END IF
@@ -6231,7 +6231,7 @@ FUNCTION ide2 (ignore)
                     SDECB_command$ = "make Command3 FILE=" + ideprogname$ + " FILENOEXT=" + RemoveFileExtension$(ideprogname$)
                 ELSE
                     ' ---- WINDOWS ----
-                    SDECB_command$ = "compile.bat Command3 FILE=" + ideprogname$ + " FILENOEXT=" + RemoveFileExtension$(ideprogname$)
+                    SDECB_command$ = "compile.bat Command3 " + ideprogname$ + " " + RemoveFileExtension$(ideprogname$)
                 END IF
                 GOTO idemexe
             END IF
@@ -6242,7 +6242,7 @@ FUNCTION ide2 (ignore)
                     SDECB_command$ = "make Command4 FILE=" + ideprogname$ + " FILENOEXT=" + RemoveFileExtension$(ideprogname$)
                 ELSE
                     ' ---- WINDOWS ----
-                    SDECB_command$ = "compile.bat Command4 FILE=" + ideprogname$ + " FILENOEXT=" + RemoveFileExtension$(ideprogname$)
+                    SDECB_command$ = "compile.bat Command4 " + ideprogname$ + " " + RemoveFileExtension$(ideprogname$)
                 END IF
                 GOTO idemexe
             END IF
@@ -6253,7 +6253,7 @@ FUNCTION ide2 (ignore)
                     SDECB_command$ = "make Command5 FILE=" + ideprogname$ + " FILENOEXT=" + RemoveFileExtension$(ideprogname$)
                 ELSE
                     ' ---- WINDOWS ----
-                    SDECB_command$ = "compile.bat Command5 FILE=" + ideprogname$ + " FILENOEXT=" + RemoveFileExtension$(ideprogname$)
+                    SDECB_command$ = "compile.bat Command5 " + ideprogname$ + " " + RemoveFileExtension$(ideprogname$)
                 END IF
                 GOTO idemexe
             END IF

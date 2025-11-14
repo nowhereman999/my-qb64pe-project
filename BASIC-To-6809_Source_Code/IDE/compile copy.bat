@@ -32,20 +32,19 @@ ECHO Unknown target: %target%
 GOTO end
 
 :default
-echo Compiling BAS to ASM...
-./BasTo6809.exe -ascii %FILE%
-
-echo Assembling with LWASM...
-./lwasm.exe -9bl -p cd -o./%FILENOEXT%.bin %FILENOEXT%.asm > NEW_Assembly_Listing.txt
-
-echo Copying blank disk image...
-copy /Y BLANK.DSK DISK1.DSK >NUL
-
-echo Copying binary to disk image...
-./decb.exe copy -2 -b -r %FILENOEXT%.bin DISK1.DSK,%FILENOEXT%.BIN
-
-rem Uncomment the line below to start MAME (adjust path if needed)
-rem start "" mame.exe -debug -window -r 1280x800 coco3h -ramsize 2M -flop1 ./DISK1.DSK -throttle -frameskip 0 -autoboot_command "\n\n\n\nLOADM\"%FILENOEXT%\":EXEC\n" -ui_active -natural
+ECHO Running default build...
+REM Compile program %FILE%
+./BasTo6809 -ascii %FILE%
+REM Use LWASM to assemble %FILENOEXT%.asm into a CoCo LOADMable program called %FILENOEXT%.bin
+	lwasm -9bl -p cd -o.\%FILENOEXT%.bin %FILENOEXT%.asm > .\NEW_Assembly_Listing.txt
+REM Add other commands to copy the program onto a .DSK file and start an emulator in debug mode
+REM	-rm GO.BIN
+REM	./cc1sl -l $(FILENOEXT).bin -oGO.BIN
+REM	-rm $(FILENOEXT).bin
+REM	-mv GO.BIN $(FILENOEXT).bin
+REM	-imgtool del coco_jvc_rsdos ./DISK1.DSK $(FILENOEXT).bin
+REM	imgtool put coco_jvc_rsdos ./DISK1.DSK $(FILENOEXT).bin $(FILENOEXT).BIN
+REM	mame -debug -window -r 1280x800 coco3h -ramsize 2M -flop1 ./DISK1.DSK -throttle -frameskip 0 -ui_active -natural
 GOTO end
 
 :cmd1
