@@ -1,4 +1,4 @@
-name: Compile QB64-PE (Windows x64)
+name: Compile BASIC_To_6809 (Windows x64)
 
 on:
   push:

@@ -1,4 +1,4 @@
-name: Compile QB64-PE (Linux x86_64)
+name: Compile BASIC_To_6809 (Linux x86_64)
 on:
   push:
     paths:

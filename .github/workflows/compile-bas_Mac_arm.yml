@@ -1,4 +1,4 @@
-name: Compile QB64-PE (macOS ARM)
+name: Compile BASIC_To_6809 (macOS ARM)
 
 on:
   push:
