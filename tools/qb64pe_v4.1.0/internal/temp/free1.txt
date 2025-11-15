@@ -1,0 +1,4 @@
+if(oldstr366){
+if(oldstr366->fixed)qbs_set(oldstr366,_SUB_CONVERTTOFP_STRING_NUM);
+qbs_free(_SUB_CONVERTTOFP_STRING_NUM);
+}

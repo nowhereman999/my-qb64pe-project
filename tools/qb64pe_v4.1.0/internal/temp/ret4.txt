@@ -4,6 +4,243 @@ switch(return_point[next_return_point]){
 case 0:
 error(3);
 break;
+case 1528:
+goto RETURN_1528;
+break;
+case 1529:
+goto RETURN_1529;
+break;
+case 1530:
+goto RETURN_1530;
+break;
+case 1531:
+goto RETURN_1531;
+break;
+case 1532:
+goto RETURN_1532;
+break;
+case 1533:
+goto RETURN_1533;
+break;
+case 1534:
+goto RETURN_1534;
+break;
+case 1535:
+goto RETURN_1535;
+break;
+case 1536:
+goto RETURN_1536;
+break;
+case 1537:
+goto RETURN_1537;
+break;
+case 1538:
+goto RETURN_1538;
+break;
+case 1539:
+goto RETURN_1539;
+break;
+case 1540:
+goto RETURN_1540;
+break;
+case 1541:
+goto RETURN_1541;
+break;
+case 1542:
+goto RETURN_1542;
+break;
+case 1543:
+goto RETURN_1543;
+break;
+case 1544:
+goto RETURN_1544;
+break;
+case 1545:
+goto RETURN_1545;
+break;
+case 1546:
+goto RETURN_1546;
+break;
+case 1547:
+goto RETURN_1547;
+break;
+case 1548:
+goto RETURN_1548;
+break;
+case 1549:
+goto RETURN_1549;
+break;
+case 1550:
+goto RETURN_1550;
+break;
+case 1551:
+goto RETURN_1551;
+break;
+case 1552:
+goto RETURN_1552;
+break;
+case 1553:
+goto RETURN_1553;
+break;
+case 1554:
+goto RETURN_1554;
+break;
+case 1555:
+goto RETURN_1555;
+break;
+case 1556:
+goto RETURN_1556;
+break;
+case 1557:
+goto RETURN_1557;
+break;
+case 1558:
+goto RETURN_1558;
+break;
+case 1559:
+goto RETURN_1559;
+break;
+case 1560:
+goto RETURN_1560;
+break;
+case 1561:
+goto RETURN_1561;
+break;
+case 1562:
+goto RETURN_1562;
+break;
+case 1563:
+goto RETURN_1563;
+break;
+case 1564:
+goto RETURN_1564;
+break;
+case 1565:
+goto RETURN_1565;
+break;
+case 1566:
+goto RETURN_1566;
+break;
+case 1567:
+goto RETURN_1567;
+break;
+case 1568:
+goto RETURN_1568;
+break;
+case 1569:
+goto RETURN_1569;
+break;
+case 1570:
+goto RETURN_1570;
+break;
+case 1571:
+goto RETURN_1571;
+break;
+case 1572:
+goto RETURN_1572;
+break;
+case 1573:
+goto RETURN_1573;
+break;
+case 1574:
+goto RETURN_1574;
+break;
+case 1575:
+goto RETURN_1575;
+break;
+case 1576:
+goto RETURN_1576;
+break;
+case 1577:
+goto RETURN_1577;
+break;
+case 1578:
+goto RETURN_1578;
+break;
+case 1579:
+goto RETURN_1579;
+break;
+case 1580:
+goto RETURN_1580;
+break;
+case 1581:
+goto RETURN_1581;
+break;
+case 1582:
+goto RETURN_1582;
+break;
+case 1583:
+goto RETURN_1583;
+break;
+case 1584:
+goto RETURN_1584;
+break;
+case 1585:
+goto RETURN_1585;
+break;
+case 1586:
+goto RETURN_1586;
+break;
+case 1587:
+goto RETURN_1587;
+break;
+case 1588:
+goto RETURN_1588;
+break;
+case 1589:
+goto RETURN_1589;
+break;
+case 1590:
+goto RETURN_1590;
+break;
+case 1591:
+goto RETURN_1591;
+break;
+case 1592:
+goto RETURN_1592;
+break;
+case 1593:
+goto RETURN_1593;
+break;
+case 1594:
+goto RETURN_1594;
+break;
+case 1595:
+goto RETURN_1595;
+break;
+case 1596:
+goto RETURN_1596;
+break;
+case 1597:
+goto RETURN_1597;
+break;
+case 1598:
+goto RETURN_1598;
+break;
+case 1599:
+goto RETURN_1599;
+break;
+case 1600:
+goto RETURN_1600;
+break;
+case 1601:
+goto RETURN_1601;
+break;
+case 1602:
+goto RETURN_1602;
+break;
+case 1603:
+goto RETURN_1603;
+break;
+case 1604:
+goto RETURN_1604;
+break;
+case 1605:
+goto RETURN_1605;
+break;
+case 1606:
+goto RETURN_1606;
+break;
 }
 }
 error(3);

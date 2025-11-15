@@ -1,0 +1,4 @@
+if(oldstr368){
+if(oldstr368->fixed)qbs_set(oldstr368,_SUB_CONVERTTOIEEE32_STRING_NUM);
+qbs_free(_SUB_CONVERTTOIEEE32_STRING_NUM);
+}

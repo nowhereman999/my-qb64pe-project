@@ -1,3 +1,4 @@
 /Users/glenhewlett/Library/Mobile Documents/com~apple~CloudDocs/GitHub_Repos/my-qb64pe-project/tools/qb64pe_v4.1.0/internal/support/include/beforefirstline.bi
-/Users/glenhewlett/Library/Mobile Documents/com~apple~CloudDocs/GitHub_Repos/my-qb64pe-project/tools/qb64pe_v4.1.0/internal/support/vwatch/vwatch_stub.bm
+/Users/glenhewlett/Library/Mobile Documents/com~apple~CloudDocs/GitHub_Repos/my-qb64pe-project/tools/qb64pe_v4.1.0/internal/support/vwatch/vwatch.bi
+/Users/glenhewlett/Library/Mobile Documents/com~apple~CloudDocs/GitHub_Repos/my-qb64pe-project/tools/qb64pe_v4.1.0/internal/support/vwatch/vwatch.bm
 /Users/glenhewlett/Library/Mobile Documents/com~apple~CloudDocs/GitHub_Repos/my-qb64pe-project/tools/qb64pe_v4.1.0/internal/support/include/afterlastline.bm

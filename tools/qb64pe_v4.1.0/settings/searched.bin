@@ -1,3 +1,9 @@
+Used.txt"
+SamplesUsed.txt
+SpritesUsed.txt
+samples
+samples_used
+sampleused
 divisor
 fixoperationorder
 FF03
@@ -41,9 +47,3 @@ If verbose > 0 Then Print
 main_input_data
 Then Print "Doing backward compression
 Dozx0Compression
-GoSub Dozx0Compression 
-main_output_size
-MAX_OFFSET_ZX0
-Flag64k
-main_output_name
-left$

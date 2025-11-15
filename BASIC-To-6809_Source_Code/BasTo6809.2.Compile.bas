@@ -706,22 +706,28 @@ While x < Filesize
 Wend
 Print #1, "EXITProgram:"
 A$ = "ORCC": B$ = "#$50": C$ = "Turn off the interrupts": GoSub AO
+A$ = "STA": B$ = "$FFD8": C$ = "Put Coco back in normal speed": GoSub AO
 A$ = "LDB": B$ = "#1": C$ = "B=1, make the CPU run at normal speed"
 A$ = "JSR": B$ = "SetCPUSpeedB": C$ = "Set the speed according to B"
 If Ret2Basic <> 1 Then A$ = "BRA": B$ = "*": C$ = "Endless loop, do not return to BASIC": GoSub AO
-A$ = "LDA": B$ = "#$38": GoSub AO
-A$ = "STA": B$ = ">$FFA0": C$ = "Set Block 0 to normal $38": GoSub AO
-A$ = "LDX": B$ = "#@Start": GoSub AO
-A$ = "LDU": B$ = "#$0000": GoSub AO
-z$ = "!": A$ = "LDA": B$ = ",X+": GoSub AO
-A$ = "STA": B$ = ",U+": GoSub AO
-A$ = "CMPX": B$ = "#@End": GoSub AO
-A$ = "JMP": B$ = ">$0000": GoSub AO
-z$ = "@Start:": GoSub AO
-A$ = "STA": B$ = ">$FFDE": C$ = "Make sure we are in ROM mode": GoSub AO
-A$ = "CLR": B$ = ">$71": C$ = "Make sure we do a cold reboot, so the user is confident things are back to normal": GoSub AO
-A$ = "JMP": B$ = "[>$FFFE]": C$ = "Jump back to the start of the BASIC ROM": GoSub AO
-z$ = "@End": GoSub AO
+' Restore the IRQ jump address
+A$ = "LDX": B$ = "$FFFE": C$ = "Get the RESET location": GoSub AO
+A$ = "CMPX": B$ = "#$8C1B": C$ = "Check if it's a CoCo 3": GoSub AO
+A$ = "BNE": B$ = "RestoreCoCo1": C$ = "Setup IRQ, using CoCo 1 IRQ Jump location": GoSub AO
+A$ = "LDX": B$ = "#$FEF7": C$ = "X = Address for the COCO 3 IRQ JMP": GoSub AO
+A$ = "BRA": B$ = ">": C$ = "Skip ahead": GoSub AO
+Z$ = "RestoreCoCo1": GoSub AO
+A$ = "LDX": B$ = "#$010C": C$ = "X = Address for the COCO 1 IRQ JMP": GoSub AO
+Z$ = "!"
+' Restore it
+A$ = "LDU": B$ = "#OriginalIRQ": C$ = "U = Address of the original IRQ": GoSub AO
+A$ = "LDA": B$ = ",U": C$ = "A = Branch Instruction": GoSub AO
+A$ = "STA": B$ = ",X": C$ = "Save Branch Instruction": GoSub AO
+A$ = "LDD": B$ = "1,U": C$ = "D = address": GoSub AO
+A$ = "STD": B$ = "1,X": C$ = "Restore the Address of the IRQ": GoSub AO
+Print #1, "RestoreStack:"
+A$ = "LDS": B$ = "#$0000": C$ = "Selfmodified when this programs starts - this restores S just how BASIC had it": GoSub AO
+A$ = "PULS": B$ = "CC,D,DP,X,Y,U,PC": C$ = "Restore the original BASIC Register values and return to BASIC, if it can": GoSub AO
 
 ' Add data Table if needed
 Print #1, "DataStart:"
@@ -867,6 +873,7 @@ If KeepTempFiles = 0 Then
     Kill "DefFNUsed.txt"
     Kill "DefVarUsed.txt"
     Kill "SpritesUsed.txt"
+    Kill "SamplesUsed.txt"
     Kill "BASIC_Text.bas"
     Kill "BasicTokenized.bin"
     Kill "BasicTokenizedB4Pass2.bin"
@@ -913,7 +920,7 @@ If ArrayWidth = 8 Then
         A$ = "INC": B$ = "5,S": C$ = "Increment NumElement LSB pointer": GoSub AO
         A$ = "BNE": B$ = ">": C$ = "If LSB <>0 then skip ahead": GoSub AO
         A$ = "INC": B$ = "4,S": C$ = "If the LSB just became zero then Increment NumElement MSB pointer": GoSub AO
-        z$ = "!": GoSub AO ' Num Element Pointer is now pointing at NumElements3
+        Z$ = "!": GoSub AO ' Num Element Pointer is now pointing at NumElements3
         'Get d2
         GoSub GetExpressionB4Comma: x = x + 2 ' Get the value to parse that is before the comma "," move pointer past the comma
         ExType = 0: GoSub ParseNumericExpression ' Parse the Numeric Expression returns with D = the value
@@ -931,7 +938,7 @@ If ArrayWidth = 8 Then
                 A$ = "INC": B$ = "5,S": C$ = "Increment NumElement LSB pointer": GoSub AO
                 A$ = "BNE": B$ = ">": C$ = "If LSB <>0 then skip ahead": GoSub AO
                 A$ = "INC": B$ = "4,S": C$ = "If the LSB just became zero then Increment NumElement MSB pointer": GoSub AO
-                z$ = "!": GoSub AO
+                Z$ = "!": GoSub AO
                 ' Add dX
                 GoSub GetExpressionB4Comma: x = x + 2 ' Get the value to parse that is before the comma "," move pointer past the comma
                 ExType = 0: GoSub ParseNumericExpression ' Parse the Numeric Expression returns with D = the value
@@ -1081,7 +1088,7 @@ If ArrayWidth = 8 Then
         A$ = "INC": B$ = "5,S": C$ = "Increment NumElement LSB pointer": GoSub AO
         A$ = "BNE": B$ = ">": C$ = "If LSB <>0 then skip ahead": GoSub AO
         A$ = "INC": B$ = "4,S": C$ = "If the LSB just became zero then Increment NumElement MSB pointer": GoSub AO
-        z$ = "!": GoSub AO ' Num Element Pointer is now pointing at NumElements3
+        Z$ = "!": GoSub AO ' Num Element Pointer is now pointing at NumElements3
         'Get d2
         GoSub GetExpressionB4Comma: x = x + 2 ' Get the value to parse that is before the comma "," and move past it
         ExType = 0: GoSub ParseNumericExpression ' Parse the Numeric Expression returns with D = the value
@@ -1099,7 +1106,7 @@ If ArrayWidth = 8 Then
                 A$ = "INC": B$ = "5,S": C$ = "Increment NumElement LSB pointer": GoSub AO
                 A$ = "BNE": B$ = ">": C$ = "If LSB <>0 then skip ahead": GoSub AO
                 A$ = "INC": B$ = "4,S": C$ = "If the LSB just became zero then Increment NumElement MSB pointer": GoSub AO
-                z$ = "!": GoSub AO
+                Z$ = "!": GoSub AO
                 ' Add dX
                 GoSub GetExpressionB4Comma: x = x + 2 ' Get the value to parse that is before the comma "," and move past it
                 ExType = 0: GoSub ParseNumericExpression ' Parse the Numeric Expression returns with D = the value
@@ -1298,7 +1305,7 @@ If ArrayWidth = 8 Then
         A$ = "INC": B$ = "5,S": C$ = "Increment NumElement LSB pointer": GoSub AO
         A$ = "BNE": B$ = ">": C$ = "If LSB <>0 then skip ahead": GoSub AO
         A$ = "INC": B$ = "4,S": C$ = "If the LSB just became zero then Increment NumElement MSB pointer": GoSub AO
-        z$ = "!": GoSub AO ' Num Element Pointer is now pointing at NumElements3
+        Z$ = "!": GoSub AO ' Num Element Pointer is now pointing at NumElements3
         'Get d2
         GoSub GetExpressionB4Comma: x = x + 2 ' Get the value to parse that is before the comma "," & move past it
         ExType = 0: GoSub ParseNumericExpression ' Parse the Numeric Expression returns with D = the value
@@ -1316,7 +1323,7 @@ If ArrayWidth = 8 Then
                 A$ = "INC": B$ = "5,S": C$ = "Increment NumElement LSB pointer": GoSub AO
                 A$ = "BNE": B$ = ">": C$ = "If LSB <>0 then skip ahead": GoSub AO
                 A$ = "INC": B$ = "4,S": C$ = "If the LSB just became zero then Increment NumElement MSB pointer": GoSub AO
-                z$ = "!": GoSub AO
+                Z$ = "!": GoSub AO
                 ' Add dX
                 GoSub GetExpressionB4Comma: x = x + 2 ' Get the value to parse that is before the comma "," & move past it
                 ExType = 0: GoSub ParseNumericExpression ' Parse the Numeric Expression returns with D = the value
@@ -1471,7 +1478,7 @@ If ArrayWidth = 8 Then
         A$ = "INC": B$ = "5,S": C$ = "Increment NumElement LSB pointer": GoSub AO
         A$ = "BNE": B$ = ">": C$ = "If LSB <>0 then skip ahead": GoSub AO
         A$ = "INC": B$ = "4,S": C$ = "If the LSB just became zero then Increment NumElement MSB pointer": GoSub AO
-        z$ = "!": GoSub AO ' Num Element Pointer is now pointing at NumElements3
+        Z$ = "!": GoSub AO ' Num Element Pointer is now pointing at NumElements3
         'Get d2
         GoSub GetExpressionB4Comma: x = x + 2 ' Get the value to parse that is before the comma "," & move past it
         ExType = 0: GoSub ParseNumericExpression ' Parse the Numeric Expression returns with D = the value
@@ -1489,7 +1496,7 @@ If ArrayWidth = 8 Then
                 A$ = "INC": B$ = "5,S": C$ = "Increment NumElement LSB pointer": GoSub AO
                 A$ = "BNE": B$ = ">": C$ = "If LSB <>0 then skip ahead": GoSub AO
                 A$ = "INC": B$ = "4,S": C$ = "If the LSB just became zero then Increment NumElement MSB pointer": GoSub AO
-                z$ = "!": GoSub AO
+                Z$ = "!": GoSub AO
                 ' Add dX
                 GoSub GetExpressionB4Comma: x = x + 2 ' Get the value to parse that is before the comma "," & move past it
                 ExType = 0: GoSub ParseNumericExpression ' Parse the Numeric Expression returns with D = the value
@@ -1612,12 +1619,12 @@ A$ = "LDU": B$ = "#_StrVar_PF00": C$ = "U points at the start of the source stri
 A$ = "LDB": B$ = ",U+": C$ = "B = length of the source string, move U to the first location where source data is stored": GoSub AO
 A$ = "STB": B$ = ",X+": C$ = "Set the size of the destination string, X now points at the beginning of the destination data": GoSub AO
 A$ = "BEQ": B$ = "Done@": C$ = "If the length of the string is zero then don't print it (Skip ahead)": GoSub AO
-z$ = "!"
+Z$ = "!"
 A$ = "LDA": B$ = ",U+": C$ = "Get a source byte": GoSub AO
 A$ = "STA": B$ = ",X+": C$ = "Write the destination byte": GoSub AO
 A$ = "DECB": C$ = "Decrement the counter": GoSub AO
 A$ = "BNE": B$ = "<": C$ = "Loop until all data is copied to the destination string": GoSub AO
-z$ = "Done@": GoSub AO
+Z$ = "Done@": GoSub AO
 Print #1, "" ' Leave a space between sections so Done@ will work for each section
 Return
 
@@ -1689,7 +1696,7 @@ A$ = "JSR": B$ = "FP2INT": C$ = "Convert FP number at -5,U to a signed 16-bit nu
 A$ = "LDX": B$ = SourceFPV$ + "+1": C$ = "Check if original was a positive": GoSub AO
 A$ = "BPL": B$ = ">": C$ = "If positive then skip ahead ": GoSub AO
 A$ = "SUBD": B$ = "#$0001": C$ = "If negative subtract 1": GoSub AO
-z$ = "!"
+Z$ = "!"
 A$ = "STD": B$ = NV$: C$ = "Save to numeric variable": GoSub AO
 Print #-1,
 Return
@@ -2081,9 +2088,9 @@ Select Case FirstChar
                     End Select
                     A$ = "LDD": B$ = "#$0000": C$ = "Flag as false": GoSub AO
                     A$ = "BRA": B$ = "@FPComp": C$ = "skip ahead": GoSub AO
-                    z$ = "!"
+                    Z$ = "!"
                     A$ = "LDD": B$ = "#$FFFF": C$ = "Flag as true": GoSub AO
-                    z$ = "@FPComp": GoSub AO
+                    Z$ = "@FPComp": GoSub AO
                     Print #1, ' Leave space so @ works correctly
                     Return ' Go back to IF FloatingPoint Compare
                 Else
@@ -2226,12 +2233,12 @@ Else
     A$ = "LDX": B$ = "#" + StringVar$: C$ = "X points at the length of the destination string": GoSub AO
     A$ = "STB": B$ = ",X+": C$ = "Set the size of the destination string, X now points at the beginning of the destination data": GoSub AO
     A$ = "BEQ": B$ = "Done@": C$ = "If the length of the string is zero then don't print it (Skip ahead)": GoSub AO
-    z$ = "!"
+    Z$ = "!"
     A$ = "LDA": B$ = ",U+": C$ = "Get a source byte": GoSub AO
     A$ = "STA": B$ = ",X+": C$ = "Write the destination byte": GoSub AO
     A$ = "DECB": C$ = "Decrement the counter": GoSub AO
     A$ = "BNE": B$ = "<": C$ = "Loop until all data is copied to the destination string": GoSub AO
-    z$ = "Done@": GoSub AO
+    Z$ = "Done@": GoSub AO
     Print #1, "" ' Leave a space between sections so Done@ will work for each section
 End If
 Return
@@ -2256,7 +2263,7 @@ DoELSE:
 Num = ElseStack(IFSP): GoSub NumAsString 'num=IFCount associated with this IFProc
 If Num < 10 Then Num$ = "0" + Num$
 A$ = "BRA": B$ = "_IFDone_" + Num$: C$ = "Jump to END IF line": GoSub AO
-z$ = "_ELSE_" + Num$: C$ = "If result is zero = FALSE then Get here": GoSub AO
+Z$ = "_ELSE_" + Num$: C$ = "If result is zero = FALSE then Get here": GoSub AO
 GoTo ConsumeCommentsAndEOL ' Consume any comments and the EOL and Return
 
 DoELSEIF:
@@ -2676,7 +2683,7 @@ Else
         A$ = "LDX": B$ = "#_StrVar_IFRight": C$ = "X points at the length of the destination string": GoSub AO
         A$ = "STB": B$ = ",X+": C$ = "Set the size of the destination string, X now points at the beginning of the destination data": GoSub AO
         A$ = "BEQ": B$ = "Done@": C$ = "If B=0 then no need to copy the string": GoSub AO
-        z$ = "!"
+        Z$ = "!"
         A$ = "LDA": B$ = ",U+": C$ = "Get a source byte": GoSub AO
         A$ = "STA": B$ = ",X+": C$ = "Write the destination byte": GoSub AO
         A$ = "DECB": C$ = "Decrement the counter": GoSub AO
@@ -2776,7 +2783,7 @@ If FoundStringL + FoundStringR = 0 Then
     ' PSHS    result
     If (operatorStack(operatorStackTop) > &H3B And operatorStack(operatorStackTop) < &H3F) Or (operatorStack(operatorStackTop) > &H5F And operatorStack(operatorStackTop) < &H63) Then
         A$ = "LDX": B$ = "#$0000": C$ = "Make the Result zero, False": GoSub AO
-        z$ = "!"
+        Z$ = "!"
         A$ = "PSHS": B$ = "X": C$ = "Save the result on the stack": GoSub AO
     End If
 Else
@@ -2804,9 +2811,9 @@ Else
             A$ = "CMPB": B$ = ",X+": C$ = "Compare the left size with the length of the right side, move pointer to the first byte of the string": GoSub AO
             A$ = "BLS": B$ = "@BLowest": C$ = "Use B size for compare": GoSub AO
             A$ = "LDB": B$ = "-1,X": C$ = "Use the size of the right side as the compare as it has less digits": GoSub AO
-            z$ = "@BLowest"
+            Z$ = "@BLowest"
             A$ = "TFR": B$ = "D,Y": C$ = "Backup B (string size to check) in Y": GoSub AO
-            z$ = "!"
+            Z$ = "!"
             A$ = "LDA": B$ = ",U+": C$ = "Get a byte of the left string, move pointer forward": GoSub AO
             A$ = "CMPA": B$ = ",X+": C$ = "Compare it with the same byte of the right side, moe the pointer forward": GoSub AO
             A$ = "BLO": B$ = "@False": C$ = "If Left is < the right then it's FALSE": GoSub AO
@@ -2816,7 +2823,7 @@ Else
             A$ = "LDU": B$ = "#_StrVar_PF00" + "+1": C$ = "U = the Left String": GoSub AO
             A$ = "LDX": B$ = "#_StrVar_IFRight" + "+1": C$ = "X = the Right String": GoSub AO
             A$ = "TFR": B$ = "Y,D": C$ = "Restore B (string size to check)": GoSub AO
-            z$ = "!"
+            Z$ = "!"
             A$ = "LDA": B$ = ",U+": C$ = "Get a byte of the left string, move pointer forward": GoSub AO
             A$ = "CMPA": B$ = ",X+": C$ = "Compare it with the same byte of the right side, moe the pointer forward": GoSub AO
             A$ = "BHI": B$ = "@True": C$ = "If Left is > the right then return TRUE": GoSub AO
@@ -2835,7 +2842,7 @@ Else
             Print #1, "; If we get here then the length is the same, check if all characters are the same"
             A$ = "TSTB": C$ = "Check if the strings are empty": GoSub AO
             A$ = "BEQ": B$ = "@True": C$ = "If they are both empty they are the same": GoSub AO
-            z$ = "!"
+            Z$ = "!"
             A$ = "LDA": B$ = ",U+": C$ = "Get a byte of the left string, move pointer forward": GoSub AO
             A$ = "CMPA": B$ = ",X+": C$ = "Compare it with the byte of the right string, move pointer forward": GoSub AO
             A$ = "BNE": B$ = "@False": C$ = "If They are Not Equal then return a false": GoSub AO
@@ -2856,9 +2863,9 @@ Else
             A$ = "CMPB": B$ = ",X+": C$ = "Compare the left size with the length of the right side, move pointer to the first byte of the string": GoSub AO
             A$ = "BLS": B$ = "@BLowest": C$ = "Use B size for compare": GoSub AO
             A$ = "LDB": B$ = "-1,X": C$ = "Use the size of the right side as the compare as it has less digits": GoSub AO
-            z$ = "@BLowest"
+            Z$ = "@BLowest"
             A$ = "TFR": B$ = "D,Y": C$ = "Backup B (string size to check) in Y": GoSub AO
-            z$ = "!"
+            Z$ = "!"
             A$ = "LDA": B$ = ",U+": C$ = "Get a byte of the left string, move pointer forward": GoSub AO
             A$ = "CMPA": B$ = ",X+": C$ = "Compare it with the same byte of the right side, moe the pointer forward": GoSub AO
             A$ = "BHI": B$ = "@False": C$ = "If Left is > the right then it's FALSE": GoSub AO
@@ -2868,7 +2875,7 @@ Else
             A$ = "LDU": B$ = "#_StrVar_PF00" + "+1": C$ = "U = the Left String": GoSub AO
             A$ = "LDX": B$ = "#_StrVar_IFRight" + "+1": C$ = "X = the Right String": GoSub AO
             A$ = "TFR": B$ = "Y,D": C$ = "Restore B (string size to check)": GoSub AO
-            z$ = "!"
+            Z$ = "!"
             A$ = "LDA": B$ = ",U+": C$ = "Get a byte of the left string, move pointer forward": GoSub AO
             A$ = "CMPA": B$ = ",X+": C$ = "Compare it with the same byte of the right side, moe the pointer forward": GoSub AO
             A$ = "BLO": B$ = "@True": C$ = "If Left is < the right then return TRUE": GoSub AO
@@ -2887,7 +2894,7 @@ Else
             Print #1, "; If we get here then the length is the same, check if all characters are the same"
             A$ = "TSTB": C$ = "Check if the strings are empty": GoSub AO
             A$ = "BEQ": B$ = "@False": C$ = "If they are both empty they are the same, return with FALSE": GoSub AO
-            z$ = "!"
+            Z$ = "!"
             A$ = "LDA": B$ = ",U+": C$ = "Get a byte of the left string, move pointer forward": GoSub AO
             A$ = "CMPA": B$ = ",X+": C$ = "Compare it with the byte of the right string, move pointer forward": GoSub AO
             A$ = "BNE": B$ = "@True": C$ = "If They are Not Equal then return True": GoSub AO
@@ -2909,9 +2916,9 @@ Else
             A$ = "CMPB": B$ = ",X+": C$ = "Compare the left size with the length of the right side, move pointer to the first byte of the string": GoSub AO
             A$ = "BLS": B$ = "@BLowest": C$ = "Use B size for compare": GoSub AO
             A$ = "LDB": B$ = "-1,X": C$ = "Use the size of the right side as the compare as it has less digits": GoSub AO
-            z$ = "@BLowest"
+            Z$ = "@BLowest"
             A$ = "TFR": B$ = "D,Y": C$ = "Backup B (string size to check) in Y": GoSub AO
-            z$ = "!"
+            Z$ = "!"
             A$ = "LDA": B$ = ",U+": C$ = "Get a byte of the left string, move pointer forward": GoSub AO
             A$ = "CMPA": B$ = ",X+": C$ = "Compare it with the same byte of the right side, moe the pointer forward": GoSub AO
             A$ = "BHI": B$ = "@False": C$ = "If Left is > the right then it's FALSE": GoSub AO
@@ -2921,7 +2928,7 @@ Else
             A$ = "LDU": B$ = "#_StrVar_PF00" + "+1": C$ = "U = the Left String": GoSub AO
             A$ = "LDX": B$ = "#_StrVar_IFRight" + "+1": C$ = "X = the Right String": GoSub AO
             A$ = "TFR": B$ = "Y,D": C$ = "Restore B (string size to check)": GoSub AO
-            z$ = "!"
+            Z$ = "!"
             A$ = "LDA": B$ = ",U+": C$ = "Get a byte of the left string, move pointer forward": GoSub AO
             A$ = "CMPA": B$ = ",X+": C$ = "Compare it with the same byte of the right side, moe the pointer forward": GoSub AO
             A$ = "BLO": B$ = "@True": C$ = "If Left is < the right then return TRUE": GoSub AO
@@ -2945,9 +2952,9 @@ Else
             A$ = "CMPB": B$ = ",X+": C$ = "Compare the left size with the length of the right side, move pointer to the first byte of the string": GoSub AO
             A$ = "BLS": B$ = "@BLowest": C$ = "Use B size for compare": GoSub AO
             A$ = "LDB": B$ = "-1,X": C$ = "Use the size of the right side as the compare as it has less digits": GoSub AO
-            z$ = "@BLowest"
+            Z$ = "@BLowest"
             A$ = "TFR": B$ = "D,Y": C$ = "Backup B (string size to check) in Y": GoSub AO
-            z$ = "!"
+            Z$ = "!"
             A$ = "LDA": B$ = ",U+": C$ = "Get a byte of the left string, move pointer forward": GoSub AO
             A$ = "CMPA": B$ = ",X+": C$ = "Compare it with the same byte of the right side, moe the pointer forward": GoSub AO
             A$ = "BLO": B$ = "@False": C$ = "If Left is < the right then it's FALSE": GoSub AO
@@ -2957,7 +2964,7 @@ Else
             A$ = "LDU": B$ = "#_StrVar_PF00" + "+1": C$ = "U = the Left String": GoSub AO
             A$ = "LDX": B$ = "#_StrVar_IFRight" + "+1": C$ = "X = the Right String": GoSub AO
             A$ = "TFR": B$ = "Y,D": C$ = "Restore B (string size to check)": GoSub AO
-            z$ = "!"
+            Z$ = "!"
             A$ = "LDA": B$ = ",U+": C$ = "Get a byte of the left string, move pointer forward": GoSub AO
             A$ = "CMPA": B$ = ",X+": C$ = "Compare it with the same byte of the right side, moe the pointer forward": GoSub AO
             A$ = "BHI": B$ = "@True": C$ = "If Left is > the right then return TRUE": GoSub AO
@@ -2969,12 +2976,12 @@ Else
             A$ = "BLO": B$ = "@False": C$ = "If left is lower than the right then return FALSE": GoSub AO
         End If
         ' Done all compares
-        z$ = "@True"
+        Z$ = "@True"
         A$ = "LDX": B$ = "#$FFFF": C$ = "Result = -1, True": GoSub AO
         A$ = "BRA": B$ = "@SaveX": C$ = "If They are Not Equal then return a false": GoSub AO
-        z$ = "@False"
+        Z$ = "@False"
         A$ = "LDX": B$ = "#$0000": C$ = "Make the Result zero, False": GoSub AO
-        z$ = "@SaveX"
+        Z$ = "@SaveX"
         A$ = "PSHS": B$ = "X": C$ = "Save the result on the stack": GoSub AO
         Print #1, ""
     End If
@@ -3061,7 +3068,7 @@ While index(ExpressionCount) < Len(Expression$(ExpressionCount)) And Asc(Mid$(Ex
             Num = StrParseCount - 1: GoSub NumAsString 'Convert number in Num to a string without spaces as Num$
             If Num < 10 Then Num$ = "0" + Num$
             A$ = "STB": B$ = "_StrVar_PF" + Num$: C$ = "Update the size of the final Destination string": GoSub AO
-            z$ = "Loop@"
+            Z$ = "Loop@"
             A$ = "LDB": B$ = ",U+": C$ = "Get a source byte": GoSub AO
             A$ = "STB": B$ = ",X+": C$ = "Write the destination byte": GoSub AO
             A$ = "DECA": C$ = "Decrement the counter": GoSub AO
@@ -3101,7 +3108,7 @@ If Mid$(Expression$(ExpressionCount), index(ExpressionCount), 2) = Chr$(&HF5) + 
         For ii = 1 To Len(x$)
             A$ = "FCB": B$ = "$" + Hex$(Asc(Mid$(x$, ii, 1))): C$ = Mid$(x$, ii, 1): GoSub AO 'write the quote text
         Next ii
-        z$ = "!"
+        Z$ = "!"
         Num = Len(x$): GoSub NumAsString 'Convert number in Num to a string without spaces as Num$
         A$ = "LDB": B$ = "#" + Num$: C$ = "Length of this string": GoSub AO
         Num = StrParseCount: GoSub NumAsString 'Convert number in Num to a string without spaces as Num$
@@ -3109,7 +3116,7 @@ If Mid$(Expression$(ExpressionCount), index(ExpressionCount), 2) = Chr$(&HF5) + 
         A$ = "LDX": B$ = "#_StrVar_PF" + Num$: C$ = "X points at the Temp string variable start location ": GoSub AO ' X points at the Temp string variable start location
         A$ = "STB": B$ = ",X+": C$ = "store the length of the string data": GoSub AO
         A$ = "LDU": B$ = ",S++": C$ = "Stack points to the string start location, remove the return address off the stack": GoSub AO
-        z$ = "!"
+        Z$ = "!"
         A$ = "LDA": B$ = ",U+": C$ = "Get the string data": GoSub AO
         A$ = "STA": B$ = ",X+": C$ = "write the string data": GoSub AO
         A$ = "DECB": C$ = "Decrement the counter": GoSub AO
@@ -3131,12 +3138,12 @@ Else
         A$ = "LDX": B$ = "#_StrVar_PF" + Num$: C$ = "X points at the length of the destination string": GoSub AO
         A$ = "STB": B$ = ",X+": C$ = "Set the size of the destination string, X now points at the beginning of the destination data": GoSub AO
         A$ = "BEQ": B$ = "Done@": C$ = "If B=0 then no need to copy the string": GoSub AO
-        z$ = "!"
+        Z$ = "!"
         A$ = "LDA": B$ = ",U+": C$ = "Get a source byte": GoSub AO
         A$ = "STA": B$ = ",X+": C$ = "Write the destination byte": GoSub AO
         A$ = "DECB": C$ = "Decrement the counter": GoSub AO
         A$ = "BNE": B$ = "<": C$ = "Loop until all data is copied to the destination string": GoSub AO
-        z$ = "Done@": GoSub AO
+        Z$ = "Done@": GoSub AO
         Print #1, "" ' Leave a space between sections so Done@ will work for each section
     Else
         'Check for String Array variable
@@ -3201,12 +3208,12 @@ Else
                     A$ = "LDX": B$ = "#_StrVar_PF" + Num$: C$ = "X points at the length of the destination string": GoSub AO
                     A$ = "STB": B$ = ",X+": C$ = "Set the size of the destination string, X now points at the beginning of the destination data": GoSub AO
                     A$ = "BEQ": B$ = "Done@": C$ = "If B=0 then no need to copy the string": GoSub AO
-                    z$ = "!"
+                    Z$ = "!"
                     A$ = "LDA": B$ = ",U+": C$ = "Get a source byte": GoSub AO
                     A$ = "STA": B$ = ",X+": C$ = "Write the destination byte": GoSub AO
                     A$ = "DECB": C$ = "Decrement the counter": GoSub AO
                     A$ = "BNE": B$ = "<": C$ = "Loop until all data is copied to the destination string": GoSub AO
-                    z$ = "Done@": GoSub AO
+                    Z$ = "Done@": GoSub AO
                     Print #1, "" ' Leave a space between sections so Done@ will work for each section
                     index(ExpressionCount) = index(ExpressionCount) + 2 ' Skip the $F5 & close bracket
                 Else
@@ -3237,7 +3244,7 @@ Else
                     A$ = "INC": B$ = "5,S": C$ = "Increment NumElement LSB pointer": GoSub AO
                     A$ = "BNE": B$ = ">": C$ = "If LSB <>0 then skip ahead": GoSub AO
                     A$ = "INC": B$ = "4,S": C$ = "If the LSB just became zero then Increment NumElement MSB pointer": GoSub AO
-                    z$ = "!": GoSub AO ' Num Element Pointer is now pointing at NumElements3
+                    Z$ = "!": GoSub AO ' Num Element Pointer is now pointing at NumElements3
                     'Get d2
                     GoSub GetArrayElementB4Comma ' Get the value to parse that is before the &H2C = comma , Temp$ is the expression to parse
                     Expression$ = Temp$ ' New expression to parse (dimension in the array before a comma)
@@ -3256,7 +3263,7 @@ Else
                             A$ = "INC": B$ = "5,S": C$ = "Increment NumElement LSB pointer": GoSub AO
                             A$ = "BNE": B$ = ">": C$ = "If LSB <>0 then skip ahead": GoSub AO
                             A$ = "INC": B$ = "4,S": C$ = "If the LSB just became zero then Increment NumElement MSB pointer": GoSub AO
-                            z$ = "!": GoSub AO
+                            Z$ = "!": GoSub AO
                             ' Add dX
                             Temp(StrArrayParseNum) = Temp1 ' Keep value, just incase we have arrays, inside arrays
                             GoSub GetArrayElementB4Comma ' Get the value to parse that is before the &H2C = comma , Temp$ is the expression to parse
@@ -3296,12 +3303,12 @@ Else
                     A$ = "LDX": B$ = "#_StrVar_PF" + Num$: C$ = "X points at the start of the destination string": GoSub AO
                     A$ = "STB": B$ = ",X+": C$ = "Set the size of the destination string, X now points at the beginning of the destination data": GoSub AO
                     A$ = "BEQ": B$ = "Done@": C$ = "If B=0 then no need to copy the string": GoSub AO
-                    z$ = "!"
+                    Z$ = "!"
                     A$ = "LDA": B$ = ",U+": C$ = "Get a source byte": GoSub AO
                     A$ = "STA": B$ = ",X+": C$ = "Write the destination byte": GoSub AO
                     A$ = "DECB": C$ = "Decrement the counter": GoSub AO
                     A$ = "BNE": B$ = "<": C$ = "Loop until all data is copied to the destination string": GoSub AO
-                    z$ = "Done@": GoSub AO
+                    Z$ = "Done@": GoSub AO
                     Print #1, "" ' Leave a space between sections so Done@ will work for each section
                 End If
                 StrArrayParseNum = StrArrayParseNum - 1
@@ -3330,12 +3337,12 @@ Else
                     A$ = "LDX": B$ = "#_StrVar_PF" + Num$: C$ = "X points at the length of the destination string": GoSub AO
                     A$ = "STB": B$ = ",X+": C$ = "Set the size of the destination string, X now points at the beginning of the destination data": GoSub AO
                     A$ = "BEQ": B$ = "Done@": C$ = "If B=0 then no need to copy the string": GoSub AO
-                    z$ = "!"
+                    Z$ = "!"
                     A$ = "LDA": B$ = ",U+": C$ = "Get a source byte": GoSub AO
                     A$ = "STA": B$ = ",X+": C$ = "Write the destination byte": GoSub AO
                     A$ = "DECB": C$ = "Decrement the counter": GoSub AO
                     A$ = "BNE": B$ = "<": C$ = "Loop until all data is copied to the destination string": GoSub AO
-                    z$ = "Done@": GoSub AO
+                    Z$ = "Done@": GoSub AO
                     Print #1, "" ' Leave a space between sections so Done@ will work for each section
                     index(ExpressionCount) = index(ExpressionCount) + 2 ' Skip the $F5 & close bracket
                 Else
@@ -3430,12 +3437,12 @@ Else
                     A$ = "LDX": B$ = "#_StrVar_PF" + Num$: C$ = "X points at the start of the destination string": GoSub AO
                     A$ = "STB": B$ = ",X+": C$ = "Set the size of the destination string, X now points at the beginning of the destination data": GoSub AO
                     A$ = "BEQ": B$ = "Done@": C$ = "If B=0 then no need to copy the string": GoSub AO
-                    z$ = "!"
+                    Z$ = "!"
                     A$ = "LDA": B$ = ",U+": C$ = "Get a source byte": GoSub AO
                     A$ = "STA": B$ = ",X+": C$ = "Write the destination byte": GoSub AO
                     A$ = "DECB": C$ = "Decrement the counter": GoSub AO
                     A$ = "BNE": B$ = "<": C$ = "Loop until all data is copied to the destination string": GoSub AO
-                    z$ = "Done@": GoSub AO
+                    Z$ = "Done@": GoSub AO
                     Print #1, "" ' Leave a space between sections so Done@ will work for each section
                 End If
                 StrArrayParseNum = StrArrayParseNum - 1
@@ -3619,12 +3626,12 @@ While index(ExpressionCount) < Len(Expression$(ExpressionCount)) And Asc(Mid$(Ex
         A$ = BranchType$: B$ = "@IsTrue": C$ = "skip ahead if TRUE": GoSub AO
         A$ = "LDD": B$ = "#$0000": C$ = "False repsonse": GoSub AO
         A$ = "BRA": B$ = ">": C$ = "Skip ahead": GoSub AO
-        z$ = "@IsTrue": GoSub AO
+        Z$ = "@IsTrue": GoSub AO
         A$ = "LDD": B$ = "#$FFFF": C$ = "True repsonse": GoSub AO
         NumParseCount = NumParseCount - 1
         Num = NumParseCount: GoSub NumAsString 'Convert number in Num to a string without spaces as Num$
         If Num < 10 Then Num$ = "0" + Num$
-        z$ = "!": GoSub AO
+        Z$ = "!": GoSub AO
         Print #1,
         A$ = "STD": B$ = "_Var_PF" + Num$: GoSub AO
     End If
@@ -3830,22 +3837,22 @@ While index(ExpressionCount) < Len(Expression$(ExpressionCount)) And Asc(Mid$(Ex
             A$ = "BNE": B$ = ">": C$ = "If X <> zero then skip ahead": GoSub AO
             A$ = "LDD": B$ = "#1": C$ = "Exponent of zero results with 1": GoSub AO
             A$ = "BRA": B$ = "@GotD": C$ = "Done": GoSub AO
-            z$ = "!"
+            Z$ = "!"
             A$ = "BPL": B$ = ">": C$ = "If it's a postive number skip ahead": GoSub AO
             A$ = "LDD": B$ = "#$FFFF": C$ = "can't do negative exponents, make value -1": GoSub AO
             A$ = "BRA": B$ = "@GotD": C$ = "Done": GoSub AO
-            z$ = "!"
+            Z$ = "!"
             A$ = "CMPX": B$ = "#1": C$ = "Is the exponent > 1": GoSub AO
             A$ = "BGT": B$ = "@StartHere": C$ = "If so skip ahead, starting with Decrementing X": GoSub AO
             A$ = "LDD": B$ = "2,S": C$ = "D = the Base value": GoSub AO
             A$ = "BRA": B$ = "@GotD": C$ = "Done": GoSub AO
-            z$ = "!"
+            Z$ = "!"
             A$ = "JSR": B$ = "MUL16": C$ = "Do 16 bit x 16 bit Multiply, D = WORD on Stack ,S * WORD on stack 2,S, lowest 16 bit result will be in D": GoSub AO
             A$ = "STD": B$ = ",S": C$ = "Save the result to be multiplied with the base number again": GoSub AO
-            z$ = "@StartHere": GoSub AO
+            Z$ = "@StartHere": GoSub AO
             A$ = "LEAX": B$ = "-1,X": C$ = "Decremnt the number of times to multiply": GoSub AO
             A$ = "BNE": B$ = "<": C$ = "If X is <> zero keep looping": GoSub AO
-            z$ = "@GotD"
+            Z$ = "@GotD"
             A$ = "LEAS": B$ = "4,S": C$ = "fix the stack": GoSub AO
             Print #1,
             resultP20(PE20Count) = resultP20(PE20Count) ^ Parse30_Term
@@ -4117,7 +4124,7 @@ Else
                             A$ = "INC": B$ = "5,S": C$ = "Increment NumElement LSB pointer": GoSub AO
                             A$ = "BNE": B$ = ">": C$ = "If LSB <>0 then skip ahead": GoSub AO
                             A$ = "INC": B$ = "4,S": C$ = "If the LSB just became zero then Increment NumElement MSB pointer": GoSub AO
-                            z$ = "!": GoSub AO ' Num Element Pointer is now pointing at NumElements3
+                            Z$ = "!": GoSub AO ' Num Element Pointer is now pointing at NumElements3
                             'Get d2
                             GoSub GetArrayElementB4Comma ' Get the value to parse that is before the &H2C = comma , Temp$ is the expression to parse
                             Expression$ = Temp$ ' New expression to parse (dimension in the array before a comma)
@@ -4136,7 +4143,7 @@ Else
                                     A$ = "INC": B$ = "5,S": C$ = "Increment NumElement LSB pointer": GoSub AO
                                     A$ = "BNE": B$ = ">": C$ = "If LSB <>0 then skip ahead": GoSub AO
                                     A$ = "INC": B$ = "4,S": C$ = "If the LSB just became zero then Increment NumElement MSB pointer": GoSub AO
-                                    z$ = "!": GoSub AO
+                                    Z$ = "!": GoSub AO
                                     ' Add dX
                                     Temp(NumArrayParseNum) = Temp1 ' Keep value, just incase we have arrays, inside arrays
                                     GoSub GetArrayElementB4Comma ' Get the value to parse that is before the &H2C = comma , Temp$ is the expression to parse
@@ -4411,14 +4418,14 @@ Return
 ' Send assembly instructions out to .asm file
 AO:
 'Print z$ at the beginning of the line
-If Len(z$) < 8 Then
-    Print #1, Left$(z$ + "        ", 8); Left$(A$ + "        ", 8);
+If Len(Z$) < 8 Then
+    Print #1, Left$(Z$ + "        ", 8); Left$(A$ + "        ", 8);
 Else
-    Print #1, z$; T2$; Left$(A$ + "        ", 8);
+    Print #1, Z$; T2$; Left$(A$ + "        ", 8);
 End If
 If Len(B$) > 13 Then Print #1, B$; "   "; Else Print #1, Left$(B$ + "              ", 14);
 If C$ <> "" Then Print #1, "; "; C$ Else Print #1,
-z$ = "": A$ = "": B$ = "": C$ = "" 'Clear the strings so next entry won't be repeated
+Z$ = "": A$ = "": B$ = "": C$ = "" 'Clear the strings so next entry won't be repeated
 Return
 
 AddIncludeTemp:
@@ -5133,10 +5140,10 @@ If c > 5 Then
     GoTo PrintQGetChars
     PrintQGotQuote:
     x = x + 1 ' Point past the quote
-    z$ = "!"
+    Z$ = "!"
     A$ = "LDB": B$ = "#" + Right$(Str$(c), Len(Str$(c)) - 1): C$ = "Length of this string": GoSub AO
     A$ = "LDU": B$ = ",S++": C$ = "Load U with the string start location off the stack and fix the stack": GoSub AO
-    z$ = "!"
+    Z$ = "!"
     A$ = "LDA": B$ = ",U+": C$ = "Get the string data": GoSub AO
     If PrintCC3 = 1 Then
         A$ = "LDY": B$ = "#" + PrintA$: C$ = "Y points at the routine to do, Go print A" + PrintDev$: GoSub AO
@@ -5217,7 +5224,7 @@ If v = &HF1 Then ' Printing a String Array variable, PRINT A$(6)
     A$ = "LDU": B$ = "#_StrVar_PF00": C$ = "U points at the start of the source string": GoSub AO
     A$ = "LDB": B$ = ",U+": C$ = "B = length of the source string, move U to the first location where source data is stored": GoSub AO
     A$ = "BEQ": B$ = "Done@": C$ = "If the length of the string is zero then don't print it (Skip ahead)": GoSub AO
-    z$ = "!"
+    Z$ = "!"
     A$ = "LDA": B$ = ",U+": C$ = "Get a source byte": GoSub AO
     If PrintCC3 = 1 Then
         A$ = "LDY": B$ = "#" + PrintA$: C$ = "Y points at the routine to do, Go print A" + PrintDev$: GoSub AO
@@ -5228,7 +5235,7 @@ If v = &HF1 Then ' Printing a String Array variable, PRINT A$(6)
     End If
     A$ = "DECB": C$ = "Decrement the counter": GoSub AO
     A$ = "BNE": B$ = "<": C$ = "Loop until all data is copied to the destination string": GoSub AO
-    z$ = "Done@": GoSub AO
+    Z$ = "Done@": GoSub AO
     Print #1, "" ' Leave a space between sections so Done@ will work for each section
     GoTo GetSectionToPrint
 End If
@@ -5255,7 +5262,7 @@ If v = &HF3 Then ' Printing a Regular String Variable, PRINT A$
     A$ = "LDU": B$ = "#_StrVar_PF00": C$ = "U points at the start of the source string": GoSub AO
     A$ = "LDB": B$ = ",U+": C$ = "B = length of the source string, move U to the first location where source data is stored": GoSub AO
     A$ = "BEQ": B$ = "Done@": C$ = "If the length of the string is zero then don't print it (Skip ahead)": GoSub AO
-    z$ = "!"
+    Z$ = "!"
     A$ = "LDA": B$ = ",U+": C$ = "Get a source byte": GoSub AO
     If PrintCC3 = 1 Then
         A$ = "LDY": B$ = "#" + PrintA$: C$ = "Y points at the routine to do, Go print A" + PrintDev$: GoSub AO
@@ -5266,7 +5273,7 @@ If v = &HF3 Then ' Printing a Regular String Variable, PRINT A$
     End If
     A$ = "DECB": C$ = "Decrement the counter": GoSub AO
     A$ = "BNE": B$ = "<": C$ = "Loop until all data is copied to the destination string": GoSub AO
-    z$ = "Done@": GoSub AO
+    Z$ = "Done@": GoSub AO
     Print #1, "" ' Leave a space between sections so Done@ will work for each section
     GoTo GetSectionToPrint
 End If
@@ -5465,7 +5472,7 @@ If v = &HFD Then ' Printing a String Command, PRINT CHR$(67)
     A$ = "LDU": B$ = "#_StrVar_PF00": C$ = "U points at the start of the source string": GoSub AO
     A$ = "LDB": B$ = ",U+": C$ = "B = length of the source string, move U to the first location where source data is stored": GoSub AO
     A$ = "BEQ": B$ = "Done@": C$ = "If the length of the string is zero then don't print it (Skip ahead)": GoSub AO
-    z$ = "!"
+    Z$ = "!"
     A$ = "LDA": B$ = ",U+": C$ = "Get a source byte": GoSub AO
     If PrintCC3 = 1 Then
         A$ = "LDY": B$ = "#" + PrintA$: C$ = "Y points at the routine to do, Go print A" + PrintDev$: GoSub AO
@@ -5476,7 +5483,7 @@ If v = &HFD Then ' Printing a String Command, PRINT CHR$(67)
     End If
     A$ = "DECB": C$ = "Decrement the counter": GoSub AO
     A$ = "BNE": B$ = "<": C$ = "Loop until all data is copied to the destination string": GoSub AO
-    z$ = "Done@": GoSub AO
+    Z$ = "Done@": GoSub AO
     Print #1, "" ' Leave a space between sections so Done@ will work for each section
     GoTo GetSectionToPrint
 End If
@@ -5487,7 +5494,7 @@ If v = &HFE Then ' Printing a Numeric Command, PRINT PEEK(10)
         GoSub GetExpressionMidB4EndBracket: x = x + 2 ' Get the expression that ends with a close bracket & move past it
         ExType = 0: GoSub ParseNumericExpression ' Parse the Numeric Expression, value will end up in D
         A$ = "LDA": B$ = "#$20": C$ = "A = SPACE": GoSub AO
-        z$ = "!"
+        Z$ = "!"
         If PrintCC3 = 1 Then
             A$ = "LDY": B$ = "#" + PrintA$: C$ = "Y points at the routine to do, Go print A" + PrintDev$: GoSub AO
             A$ = "JSR": B$ = "DoCC3Graphics": C$ = "Prep for CoCo 3 graphics and then JSR ,Y and restore & return": GoSub AO
@@ -5539,11 +5546,11 @@ If v = &H40 Then
     A$ = "BLO": B$ = ">": C$ = "Skip ahead if lower than $600": GoSub AO
     A$ = "LDD": B$ = "#$5FF": C$ = "Make D = $5FF (max)": GoSub AO
     A$ = "BRA": B$ = "@StoreD": C$ = "Update the location to print": GoSub AO
-    z$ = "!"
+    Z$ = "!"
     A$ = "CMPD": B$ = "#$400": C$ = "Compare D with $600": GoSub AO
     A$ = "BHS": B$ = "@StoreD": C$ = "Skip ahead if higher than $600": GoSub AO
     A$ = "LDD": B$ = "#$400": C$ = "Make D = $400 (min)": GoSub AO
-    z$ = "@StoreD"
+    Z$ = "@StoreD"
     A$ = "STD": B$ = "CURPOS": C$ = "Update the location of the cursor": GoSub AO
     Print #1, ""
     GoTo GetSectionToPrint
@@ -5598,7 +5605,7 @@ If v = &H2C Then GoTo ONLoop1
 ' We have the ON value in D, All we need is the value in B as it can't be larger than a 127
 Num = c: GoSub NumAsString 'Convert number in Num to a string without spaces as Num$
 If Num < 10 Then Num$ = "0" + Num$
-z$ = "!"
+Z$ = "!"
 A$ = "CMPD": B$ = "#" + Num$: C$ = "See if the value is larger than the number of entries in the list": GoSub AO
 A$ = "BHI": B$ = DoneOn$: C$ = "If the value is higher then simply skip to the next line": GoSub AO
 A$ = "LSLB": C$ = "B = B*2 Jump Table entries are two bytes each": GoSub AO
@@ -5609,7 +5616,7 @@ If ONType$ = "JSR" Then
 Else
     A$ = ONType$: B$ = "[,X]": C$ = "GOTO to the address in the table": GoSub AO
 End If
-z$ = DoneOn$: GoSub AO
+Z$ = DoneOn$: GoSub AO
 Print #1,
 Return
 
@@ -5664,7 +5671,7 @@ If count = 0 Then
         Print #1, ' Leave a blank so @ labels work properly
         A$ = "LDX": B$ = "#DecNumber": C$ = "X points at the start of the table of data to grab each time": GoSub AO
         A$ = "CLRB": GoSub AO
-        z$ = "!"
+        Z$ = "!"
         A$ = "INCB": GoSub AO
         A$ = "CMPB": B$ = "#7": C$ = "Check the number of decimal places": GoSub AO
         A$ = "BHI": B$ = "@NotANumber": C$ = "If more than 7 then we have a problem": GoSub AO
@@ -5675,10 +5682,10 @@ If count = 0 Then
         A$ = "CLR": B$ = "-1,X": C$ = "flag last byte as 0, so we know that we have reached the end of the string": GoSub AO
         A$ = "JSR": B$ = "DecToD": C$ = "Convert the string in the buffer to a number": GoSub AO
         A$ = "BEQ": B$ = ">": C$ = "Skip forward if conversion went well": GoSub AO
-        z$ = "@NotANumber": GoSub AO
+        Z$ = "@NotANumber": GoSub AO
         A$ = "JSR": B$ = "ShowREDO": C$ = "Show ?REDO on screen": GoSub AO
         A$ = "BRA": B$ = ShowInputText$: C$ = "Show input text, if there was some and get the input again": GoSub AO
-        z$ = "!"
+        Z$ = "!"
         C$ = "D now has the converted number :)": GoSub AO
         Print #1, ' Leave a blank so @ labels work properly
         If v = &HF2 Then
@@ -5709,7 +5716,7 @@ If count = 0 Then
             A$ = "PSHS": B$ = "X": C$ = "Save X on the stack": GoSub AO
             A$ = "LEAX": B$ = "1,X": C$ = "Move X so it starts at the correct location": GoSub AO
             A$ = "CLRB": C$ = "Clear the counter": GoSub AO
-            z$ = "!"
+            Z$ = "!"
             A$ = "INCB": C$ = "Increment the counter": GoSub AO
             A$ = "LDA": B$ = ",U+": GoSub AO
             A$ = "STA": B$ = ",X+": C$ = "Add it to the end of the buffer": GoSub AO
@@ -5742,7 +5749,7 @@ Do Until v = &HF5 And (Array(x) = &H0D Or Array(x) = &H3A)
         Print #1, ' Leave a blank so @ labels work properly
         A$ = "LDX": B$ = "#DecNumber": C$ = "X points at the start of the table of data to grab each time": GoSub AO
         A$ = "CLRB": GoSub AO
-        z$ = "!"
+        Z$ = "!"
         A$ = "INCB": GoSub AO
         A$ = "CMPB": B$ = "#7": C$ = "Check the number of decimal places": GoSub AO
         A$ = "BHI": B$ = "@NotANumber": C$ = "If more than 7 then we have a problem": GoSub AO
@@ -5753,10 +5760,10 @@ Do Until v = &HF5 And (Array(x) = &H0D Or Array(x) = &H3A)
         A$ = "CLR": B$ = "-1,X": C$ = "flag last byte as 0, so we know that we have reached the end of the string": GoSub AO
         A$ = "JSR": B$ = "DecToD": C$ = "Convert the string in the buffer to a number": GoSub AO
         A$ = "BEQ": B$ = ">": C$ = "Skip forward if conversion went well": GoSub AO
-        z$ = "@NotANumber": GoSub AO
+        Z$ = "@NotANumber": GoSub AO
         A$ = "JSR": B$ = "ShowREDO": C$ = "Show ?REDO on screen": GoSub AO
         A$ = "BRA": B$ = ShowInputText$: C$ = "Show input text, if there was some and get the input again": GoSub AO
-        z$ = "!"
+        Z$ = "!"
         C$ = "D now has the converted number :)": GoSub AO
         Print #1, ' Leave a blank so @ labels work properly
         If v = &HF2 Then
@@ -5785,7 +5792,7 @@ Do Until v = &HF5 And (Array(x) = &H0D Or Array(x) = &H3A)
             A$ = "PSHS": B$ = "X": C$ = "Save X on the stack": GoSub AO
             A$ = "LEAX": B$ = "1,X": C$ = "Move X so it starts at the correct location": GoSub AO
             A$ = "CLRB": C$ = "Clear the counter": GoSub AO
-            z$ = "!"
+            Z$ = "!"
             A$ = "INCB": C$ = "Increment the counter": GoSub AO
             A$ = "LDA": B$ = ",U+": GoSub AO
             A$ = "STA": B$ = ",X+": C$ = "Add it to the end of the buffer": GoSub AO
@@ -5813,7 +5820,7 @@ If v = &HFF Then
         Num = ElseStack(IFSP): GoSub NumAsString
         If Num < 10 Then Num$ = "0" + Num$
         ' Emit the label `_IFDone_##:` so that any BEQ/BRA jumps land here
-        z$ = "_IFDone_" + Num$: C$ = "Label: END IF": GoSub AO
+        Z$ = "_IFDone_" + Num$: C$ = "Label: END IF": GoSub AO
         ' Now pop the IFstack:
         IFSP = IFSP - 1
         ' (If you have a depth variable like ENDIFCheck, decrement it here:
@@ -5833,11 +5840,11 @@ If v = &HFF Then
                 Num = CaseCount(SELECTStackPointer): GoSub NumAsString 'Convert number in Num to a string without spaces as Num$
                 If Num < 10 Then Num$ = "0" + Num$
                 CaseNumber$ = CaseNumber$ + "_" + Num$
-                z$ = "_CaseCheck_" + CaseNumber$: C$ = "No more CASEs": GoSub AO
+                Z$ = "_CaseCheck_" + CaseNumber$: C$ = "No more CASEs": GoSub AO
             End If
             Num = SELECTSTack(SELECTStackPointer): GoSub NumAsString 'Convert number in Num to a string without spaces as Num$
             If Num < 10 Then Num$ = "0" + Num$
-            z$ = "_EndSelect_" + Num$: C$ = "This is the end of Select " + Num$: GoSub AO
+            Z$ = "_EndSelect_" + Num$: C$ = "This is the end of Select " + Num$: GoSub AO
             CaseCount(SELECTStackPointer) = 0 ' make sure the next CASE in a SELECT starts normally
             SELECTStackPointer = SELECTStackPointer - 1
             A$ = "LDD": B$ = "EveryCasePointer": C$ = "Get the Flag pointer in D": GoSub AO
@@ -5911,27 +5918,27 @@ A$ = "ANDA": B$ = "#%00000111": C$ = "Get only the bits we care about": GoSub AO
 A$ = "BNE": B$ = ">": C$ = "If it's not zero thenskip ahead": GoSub AO
 A$ = "LDD": B$ = "#$1022": C$ = "opcode for LBHI - FOR X=10 to 1000 Step 1": GoSub AO
 A$ = "BRA": B$ = "@ForSelfMod": C$ = "Go save opcode in the FOR compare loop": GoSub AO
-z$ = "!"
+Z$ = "!"
 A$ = "LDB": B$ = "#$2E": C$ = "Default is BGT opcode": GoSub AO
 A$ = "RORA": C$ = "Move step sign into the carry bit": GoSub AO
 A$ = "SBCB": B$ = "#$00": C$ = "B=B- carry bit, if carry is a 1 then opcode will be BLT": GoSub AO
 A$ = "LDA": B$ = "#$10": C$ = "Make the opcode a Long branch": GoSub AO
 Num = FORCount: GoSub NumAsString 'Convert number in Num to a string without spaces as Num$
 If Num < 10 Then Num$ = "0" + Num$
-z$ = "@ForSelfMod": GoSub AO
+Z$ = "@ForSelfMod": GoSub AO
 A$ = "STD": B$ = "FOR_Check_" + Num$ + "+4": C$ = "Save the BRANCH opcode (self mod below)": GoSub AO
 
 A$ = "BRA": B$ = "@SkipFirst": C$ = "Skip past the check, the first time": GoSub AO
 ' FOR loop starts here
-z$ = "ForLoop_" + Num$: C$ = "Start of FOR Loop": GoSub AO
+Z$ = "ForLoop_" + Num$: C$ = "Start of FOR Loop": GoSub AO
 A$ = "LDD": B$ = "_Var_" + NumericVariable$(CompVar): C$ = "Get the varible needed for this NEXT command": GoSub AO
-z$ = "FOR_ADD_" + Num$: GoSub AO
+Z$ = "FOR_ADD_" + Num$: GoSub AO
 A$ = "ADDD": B$ = "#$FFFF": C$ = "Add this amount each iteration of the FOR loop (self modded when the FOR is setup)": GoSub AO
 A$ = "STD": B$ = "_Var_" + NumericVariable$(CompVar): C$ = "Save the updated value of the numeric varible needed for this NEXT command": GoSub AO
-z$ = "FOR_Check_" + Num$: GoSub AO
+Z$ = "FOR_Check_" + Num$: GoSub AO
 A$ = "CMPD": B$ = "#$FFFF": C$ = "This value will be self modded to compare with when the FOR is setup": GoSub AO
 A$ = "LBGT": B$ = ">NEXTDone_" + Num$: C$ = "Branch type (LBLE/LBGE) will be changed depending on a add or subtract with each loop": GoSub AO
-z$ = "@SkipFirst": GoSub AO
+Z$ = "@SkipFirst": GoSub AO
 Print #1, ""
 Return
 
@@ -5957,7 +5964,7 @@ If FORStackPointer = 0 Then Print "Error: Next without FOR in line"; linelabel$:
 Num = FORSTack(FORStackPointer): GoSub NumAsString 'Convert number in Num to a string without spaces as Num$
 If Num < 10 Then Num$ = "0" + Num$
 A$ = "BRA": B$ = "ForLoop_" + Num$: C$ = "Goto the FOR loop": GoSub AO
-z$ = "NEXTDone_" + Num$: C$ = "End of FOR/NEXT loop": GoSub AO
+Z$ = "NEXTDone_" + Num$: C$ = "End of FOR/NEXT loop": GoSub AO
 FORStackPointer = FORStackPointer - 1
 ' Check for a Comma or EOL/Colon
 Do Until v = &HF5 And (Array(x) = &H0D Or Array(x) = &H3A Or Array(x) = &H2C) ' EOL, Colon or Comma
@@ -6118,12 +6125,12 @@ Do Until v = &HF5 And (Array(x) = &H0D Or Array(x) = &H3A)
         A$ = "LDB": B$ = ",U+": C$ = "Load B with the length of this string value, move pointer forward to the string data": GoSub AO
         A$ = "STB": B$ = ",X+": C$ = "Set the size of the destination string, X now points at the beginning of the destination data": GoSub AO
         A$ = "BEQ": B$ = "@Done": C$ = "If B=0 then no need to copy the string": GoSub AO
-        z$ = "!"
+        Z$ = "!"
         A$ = "LDA": B$ = ",U+": C$ = "Get a source byte": GoSub AO
         A$ = "STA": B$ = ",X+": C$ = "Write the destination byte": GoSub AO
         A$ = "DECB": C$ = "Decrement the counter": GoSub AO
         A$ = "BNE": B$ = "<": C$ = "Loop until all data is copied to the destination string": GoSub AO
-        z$ = "@Done": GoSub AO
+        Z$ = "@Done": GoSub AO
         A$ = "STU": B$ = "DATAPointer": C$ = "Save the updated pointer": GoSub AO
         Print #1, ""
         GoTo DoREAD
@@ -6149,12 +6156,12 @@ Do Until v = &HF5 And (Array(x) = &H0D Or Array(x) = &H3A)
         A$ = "LDB": B$ = ",U+": C$ = "Load B with the length of this string value, move pointer forward to the string data": GoSub AO
         A$ = "STB": B$ = ",X+": C$ = "Set the size of the destination string, X now points at the beginning of the destination data": GoSub AO
         A$ = "BEQ": B$ = "@Done": C$ = "If B=0 then no need to copy the string": GoSub AO
-        z$ = "!"
+        Z$ = "!"
         A$ = "LDA": B$ = ",U+": C$ = "Get a source byte": GoSub AO
         A$ = "STA": B$ = ",X+": C$ = "Write the destination byte": GoSub AO
         A$ = "DECB": C$ = "Decrement the counter": GoSub AO
         A$ = "BNE": B$ = "<": C$ = "Loop until all data is copied to the destination string": GoSub AO
-        z$ = "@Done": GoSub AO
+        Z$ = "@Done": GoSub AO
         A$ = "STU": B$ = "DATAPointer": C$ = "Save the updated pointer": GoSub AO
         Print #1, ""
         GoTo DoREAD
@@ -6185,7 +6192,7 @@ A$ = "STD": B$ = "@POKE+1": C$ = "Save location where to poke in memory below (S
 'Get value to poke in D (we only use B)
 GoSub GetExpressionB4EOL 'Handle an expression that ends with a colon or End of a Line
 ExType = 0: GoSub ParseNumericExpression ' Parse the Numeric Expression
-z$ = "@POKE": A$ = "STB": B$ = ">$FFFF": C$ = "Store B in memory location (Self modded above)": GoSub AO
+Z$ = "@POKE": A$ = "STB": B$ = ">$FFFF": C$ = "Store B in memory location (Self modded above)": GoSub AO
 Print #1,
 Return
 DoCONT:
@@ -6309,19 +6316,19 @@ Else
     A$ = "BLO": B$ = ">": C$ = "If value is lower than 9 then skip ahead": GoSub AO
     A$ = "LDB": B$ = "#$60": C$ = "Otherwise make B = Default background colour": GoSub AO
     A$ = "BRA": B$ = "@DoCLS": C$ = "Fill the screen with colour B": GoSub AO
-    z$ = "!"
+    Z$ = "!"
     A$ = "TSTB": C$ = "Compare value with 0": GoSub AO
     A$ = "BNE": B$ = ">": C$ = "If value is 1 to 8 we're good, go show it": GoSub AO
     A$ = "LDB": B$ = "#$80": C$ = "Otherwise make B = $80 as Black colour": GoSub AO
     A$ = "BRA": B$ = "@DoCLS": C$ = "Fill the screen with colour B": GoSub AO
-    z$ = "!"
+    Z$ = "!"
     A$ = "DECB": C$ = "B = 0 to 7": GoSub AO
     A$ = "LSLB": GoSub AO
     A$ = "LSLB": GoSub AO
     A$ = "LSLB": GoSub AO
     A$ = "LSLB": C$ = "B = B * 16": GoSub AO
     A$ = "ORB": B$ = "#%10001111": C$ = "Set bits 7,3,2,1,0": GoSub AO
-    z$ = "@DoCLS:"
+    Z$ = "@DoCLS:"
     A$ = "JSR": B$ = "CLS_B": C$ = "Fill text screen with value of B": GoSub AO
     Print #1,
 End If
@@ -6501,7 +6508,7 @@ v = Array(x): x = x + 1: If v <> &HFB Then Print "Something is wrong with the DE
 v = Array(x) * 256 + Array(x + 1): x = x + 2 ' get the label pointer
 DefL$ = DefLabel$(v)
 A$ = "BRA": B$ = "DefFN_" + DefL$ + "_Done": C$ = "Skip over DEF FN Setup code": GoSub AO
-z$ = "DefFN_" + DefL$: GoSub AO
+Z$ = "DefFN_" + DefL$: GoSub AO
 Do Until v = &HFC And Array(x) = &H3D
     v = Array(x): x = x + 1
 Loop
@@ -6509,7 +6516,7 @@ x = x + 1
 GoSub GetExpressionB4EOL: x = x + 2 ' Get the expression before an End of Line in Expression$
 ExType = 0: GoSub ParseNumericExpression ' Parse the Numeric Expression
 A$ = "RTS": C$ = "Start of FN function " + DefL$: GoSub AO: C$ = "FN " + DefL$ + " is done.": GoSub AO
-z$ = "DefFN_" + DefL$ + "_Done": GoSub AO
+Z$ = "DefFN_" + DefL$ + "_Done": GoSub AO
 Return
 ' Will never get here
 DoLET:
@@ -6530,8 +6537,8 @@ A$ = "ABX": C$ = "X now points at the correct palette to set the colour value": 
 GoSub GetExpressionB4EOL 'Handle an expression that ends with a colon or End of a Line
 ExType = 0: GoSub ParseNumericExpression ' Parse the Numeric Expression
 ' Wait for vsync
-A$ = "TST": B$ = "$FF02": C$ = "Reset Vsync flag": GoSub AO
-z$ = "!": A$ = "TST": B$ = "$FF03": C$ = "See if Vsync has occurred yet": GoSub AO
+A$ = "LDA": B$ = "$FF02": C$ = "Reset Vsync flag": GoSub AO
+Z$ = "!": A$ = "LDA": B$ = "$FF03": C$ = "See if Vsync has occurred yet": GoSub AO
 A$ = "BPL": B$ = "<": C$ = "If not then keep looping, until the Vsync occurs": GoSub AO
 A$ = "STB": B$ = ",X": C$ = "Store B at X": GoSub AO
 Return
@@ -6547,7 +6554,7 @@ If Gmode = 0 Or Gmode = 1 Or Gmode = 2 Or Gmode = 4 Then
     A$ = "TSTB": C$ = "Check if B = 0": GoSub AO
     A$ = "BNE": B$ = ">": C$ = "Skip ahead if it's 0": GoSub AO
     A$ = "ADDB": B$ = "#$04": C$ = "Add 4": GoSub AO
-    z$ = "!"
+    Z$ = "!"
 End If
 A$ = "PSHS": B$ = "B": C$ = "Save the Source Graphics Page # on the stack": GoSub AO
 'Get Destination page value in D (we only use B)
@@ -6558,7 +6565,7 @@ If Gmode = 0 Or Gmode = 1 Or Gmode = 2 Or Gmode = 4 Then
     A$ = "TSTB": C$ = "Check if B = 0": GoSub AO
     A$ = "BNE": B$ = ">": C$ = "Skip ahead if it's 0": GoSub AO
     A$ = "ADDB": B$ = "#$04": C$ = "Add 4": GoSub AO
-    z$ = "!"
+    Z$ = "!"
 End If
 A$ = "PSHS": B$ = "B": C$ = "Save the Source Graphics Page # on the stack": GoSub AO
 ' Figure out the start of the source page
@@ -6589,7 +6596,7 @@ If Gmode < 100 Then
     A$ = "RORB": C$ = "D=D/2, two bytes copied at a time": GoSub AO
     A$ = "TFR": B$ = "D,Y": C$ = "Save the # of words to copy in Y": GoSub AO
 
-    z$ = "!": A$ = "LDD": B$ = ",X++": C$ = "Get a word from the source graphics screen": GoSub AO
+    Z$ = "!": A$ = "LDD": B$ = ",X++": C$ = "Get a word from the source graphics screen": GoSub AO
     A$ = "STD": B$ = ",U++": C$ = "Save the word to the destination graphics screen": GoSub AO
     A$ = "LEAY": B$ = "-1,Y": C$ = "Decrement the word counter": GoSub AO
     A$ = "BNE": B$ = "<": C$ = "If not zero yet then keep copying": GoSub AO
@@ -6654,7 +6661,7 @@ If Gmode > 99 Then
     ' We are using a CoCo 3 graphics mode
     If Gmode > 159 And FirstGmode = 0 Then
         ' Set the Palette to the special NTSC 256 colour versions
-        z$ = "; First GMODE, Set the special Palette for the composite 256 colour mode": GoSub AO
+        Z$ = "; First GMODE, Set the special Palette for the composite 256 colour mode": GoSub AO
         A$ = "LDD": B$ = "#$0010": C$ = "Palette values for index 0 & 1": GoSub AO
         A$ = "STD": B$ = "$FFB0": C$ = "Update Palette 0 & 1": GoSub AO
         A$ = "LDD": B$ = "#$2030": C$ = "Palette values for index 2 & 3": GoSub AO
@@ -6692,7 +6699,7 @@ Else
     A$ = "BNE": B$ = ">": C$ = "If not the first page then go calc where to set the graphics page viewer": GoSub AO
     A$ = "LDD": B$ = "#$" + Right$("0000" + Hex$(GScreenStart), 4): C$ = "A = the location in RAM to start the graphics screen": GoSub AO
     A$ = "BRA": B$ = "@UpdateScreenStart": C$ = "Go update the screen start location": GoSub AO
-    z$ = "!"
+    Z$ = "!"
     If Gmode = 0 Or Gmode = 1 Or Gmode = 2 Or Gmode = 4 Then
         ' For the Text screen we move past the Disk variable area
         TempVal = GScreenStart + &HE00 - &H400 - &H200 '2nd page start here
@@ -6708,14 +6715,14 @@ Else
     A$ = "JSR": B$ = "MUL16": C$ = "Do 16 bit x 16 bit Multiply, D = WORD on Stack ,S * WORD on stack 2,S, lowest 16 bit result will be in D": GoSub AO ' D = D * X
     A$ = "LEAS": B$ = "4,S": C$ = "Fix the Stack": GoSub AO
     A$ = "ADDD": B$ = "#$" + Right$("0000" + Hex$(TempVal), 4): C$ = "D = Screen Page + Screen start location": GoSub AO
-    z$ = "@UpdateScreenStart": GoSub AO
+    Z$ = "@UpdateScreenStart": GoSub AO
     A$ = "STD": B$ = "BEGGRP": C$ = "Update the Screen starting location": GoSub AO
     Print #1,
     ' Skip actually going into graphics mode, that should be done with the screen command
     '    A$ = "LSRA": C$ = "A = the location in RAM to start the graphics screen / 2 as it must start in a 512 byte block": GoSub AO
     '    ' Wait for vsync
-    '    A$ = "TST": B$ = "$FF02": C$ = "Reset Vsync flag": GoSub AO
-    '    Z$ = "!": A$ = "TST": B$ = "$FF03": C$ = "See if Vsync has occurred yet": GoSub AO
+    '    A$ = "LDB": B$ = "$FF02": C$ = "Reset Vsync flag": GoSub AO
+    '    Z$ = "!": A$ = "LDB": B$ = "$FF03": C$ = "See if Vsync has occurred yet": GoSub AO
     '    A$ = "BPL": B$ = "<": C$ = "If not then keep looping, until the Vsync occurs": GoSub AO
     '    A$ = "JSR": B$ = "SetGraphicsStartA": C$ = "Go setup the screen start location": GoSub AO
 End If
@@ -6765,8 +6772,8 @@ Return
 
 DoSCREEN:
 ' Wait for vsync
-A$ = "TST": B$ = "$FF02": C$ = "Reset Vsync flag": GoSub AO
-z$ = "!": A$ = "TST": B$ = "$FF03": C$ = "See if Vsync has occurred yet": GoSub AO
+A$ = "LDB": B$ = "$FF02": C$ = "Reset Vsync flag": GoSub AO
+Z$ = "!": A$ = "LDB": B$ = "$FF03": C$ = "See if Vsync has occurred yet": GoSub AO
 A$ = "BPL": B$ = "<": C$ = "If not then keep looping, until the Vsync occurs": GoSub AO
 If Array(x) = &HF5 And Array(x + 1) = &H2C Then x = x + 2: GoTo ColourSet ' No Screen Mode # just the colour mode#
 ' Get the numeric value before a comma or EOL or Colon
@@ -6790,7 +6797,7 @@ ExType = 0: GoSub ParseNumericExpression ' Parse the Numeric Expression
 A$ = "TSTB": C$ = "Test B": GoSub AO
 A$ = "BEQ": B$ = ">": C$ = "IF B = 0, use B as is": GoSub AO
 A$ = "LDB": B$ = "#%00001000": C$ = "ELSE make B = 8": GoSub AO
-z$ = "!"
+Z$ = "!"
 A$ = "STB": B$ = "CSSVAL": C$ = "Save the CSSVAL for setting the VDG CSS settings": GoSub AO
 A$ = "PULS": B$ = "B": C$ = "Get the Screen Mode off the stack": GoSub AO
 ScreenSkipColourSet:
@@ -6814,7 +6821,7 @@ If Gmode > 99 Then
 End If
 A$ = "LDA": B$ = "#Internal_Alphanumeric": C$ = "A = Text mode requested": GoSub AO
 A$ = "BRA": B$ = ">": GoSub AO
-z$ = "@DoGraphicMode:": GoSub AO
+Z$ = "@DoGraphicMode:": GoSub AO
 If Gmode > 99 Then
     ' We are using a CoCo 3 graphics mode
     A$ = "LDA": B$ = "#%01111100": C$ = "CoCo 3 Mode, MMU Enabled, GIME IRQ Enabled, GIME FIRQ Enabled, Vector RAM at FEXX enabled, Standard SCS Normal, ROM Map 16k Int, 16k Ext": GoSub AO
@@ -6853,20 +6860,20 @@ Else
     A$ = "JSR": B$ = "MUL16": C$ = "Do 16 bit x 16 bit Multiply, D = WORD on Stack ,S * WORD on stack 2,S, lowest 16 bit result will be in D": GoSub AO
     A$ = "LEAS": B$ = "4,S": C$ = "Fix the Stack": GoSub AO
 
-    z$ = "@Skip1"
+    Z$ = "@Skip1"
     A$ = "ADDD": B$ = "#$0E00": C$ = "D = Screen Page + Screen start location": GoSub AO
-    z$ = "@UpdateScreenStart": GoSub AO
+    Z$ = "@UpdateScreenStart": GoSub AO
     A$ = "STD": B$ = "BEGGRP": C$ = "Update the Screen starting location": GoSub AO
     A$ = "LDA": B$ = "#" + GMode$(Gmode): C$ = "A = Graphic mode requested": GoSub AO
 End If
-z$ = "!"
+Z$ = "!"
 A$ = "ORA": B$ = "CSSVAL": C$ = "Add in the colour select value into A": GoSub AO
 ' Update the Graphic mode and the screen viewer location
 A$ = "JSR": B$ = "SetGraphicModeA": C$ = "Go setup the mode": GoSub AO
 A$ = "LDA": B$ = "BEGGRP": C$ = "Update the Screen starting location": GoSub AO
 A$ = "LSRA": C$ = "Divide by 2 - 512 bytes per start location": GoSub AO
 A$ = "JSR": B$ = "SetGraphicsStartA": C$ = "Go set the address of the screen": GoSub AO
-z$ = "@Done": GoSub AO
+Z$ = "@Done": GoSub AO
 Print #1, ' Need a space for @ in assembly
 Return
 
@@ -6980,21 +6987,21 @@ If Val(GModeMaxX$(Gmode)) > 255 Then
     A$ = "BPL": B$ = ">": C$ = "If value is 0 or more then check if we are > " + GModeMaxX$(Gmode): GoSub AO
     A$ = "LDD": B$ = "#$0000": C$ = "Make value zero": GoSub AO
     A$ = "BRA": B$ = "@SaveD0": C$ = "Save B on the stack": GoSub AO
-    z$ = "!"
+    Z$ = "!"
     A$ = "CMPD": B$ = "#" + GModeMaxX$(Gmode): C$ = "Check if D is > than " + GModeMaxX$(Gmode): GoSub AO
     A$ = "BLS": B$ = "@SaveD0": C$ = "If value is " + GModeMaxX$(Gmode) + " or < then skip ahead": GoSub AO
     A$ = "LDD": B$ = "#" + GModeMaxX$(Gmode): C$ = "Make the max size " + GModeMaxX$(Gmode): GoSub AO
-    z$ = "@SaveD0"
+    Z$ = "@SaveD0"
 Else
     A$ = "TSTA": C$ = "Check if D is a negative": GoSub AO
     A$ = "BPL": B$ = ">": C$ = "If value is 0 or more then check if we are > " + GModeMaxX$(Gmode): GoSub AO
     A$ = "CLRB": C$ = "Make value zero": GoSub AO
     A$ = "BRA": B$ = "@SaveB0": C$ = "Save B on the stack": GoSub AO
-    z$ = "!"
+    Z$ = "!"
     A$ = "CMPB": B$ = "#" + GModeMaxX$(Gmode): C$ = "Check if B is > than " + GModeMaxX$(Gmode): GoSub AO
     A$ = "BLS": B$ = "@SaveB0": C$ = "If value is " + GModeMaxX$(Gmode) + " or < then skip ahead": GoSub AO
     A$ = "LDB": B$ = "#" + GModeMaxX$(Gmode): C$ = "Make the max size " + GModeMaxX$(Gmode): GoSub AO
-    z$ = "@SaveB0"
+    Z$ = "@SaveB0"
 End If
 Return
 VerifyY:
@@ -7002,11 +7009,11 @@ A$ = "TSTA": C$ = "Check if D is a negative": GoSub AO
 A$ = "BPL": B$ = ">": C$ = "If value is 0 or more then check if we are > " + GModeMaxY$(Gmode): GoSub AO
 A$ = "CLRB": C$ = "Make value zero": GoSub AO
 A$ = "BRA": B$ = "@SaveB1": C$ = "Save B on the stack": GoSub AO
-z$ = "!"
+Z$ = "!"
 A$ = "CMPB": B$ = "#" + GModeMaxY$(Gmode): C$ = "Check if B is > than " + GModeMaxY$(Gmode): GoSub AO
 A$ = "BLS": B$ = "@SaveB1": C$ = "If value is " + GModeMaxY$(Gmode) + " or < then skip ahead": GoSub AO
 A$ = "LDB": B$ = "#" + GModeMaxY$(Gmode): C$ = "Make the max size " + GModeMaxY$(Gmode): GoSub AO
-z$ = "@SaveB1"
+Z$ = "@SaveB1"
 Return
 
 DoGET:
@@ -7021,11 +7028,11 @@ A$ = "TSTA": C$ = "Check if D is a negative": GoSub AO
 A$ = "BPL": B$ = ">": C$ = "If value is 0 or more then check if we are > 255": GoSub AO
 A$ = "CLRB": C$ = "Make value zero": GoSub AO
 A$ = "BRA": B$ = "@SaveB0": C$ = "Save B on the stack": GoSub AO
-z$ = "!"
+Z$ = "!"
 A$ = "CMPD": B$ = "#255": C$ = "Check if B is > than 255": GoSub AO
 A$ = "BLE": B$ = "@SaveB0": C$ = "If value is 255 or < then skip ahead": GoSub AO
 A$ = "LDB": B$ = "#255": C$ = "Make the max size 255": GoSub AO
-z$ = "@SaveB0"
+Z$ = "@SaveB0"
 A$ = "PSHS": B$ = "B": C$ = "Save the x coordinate value on the stack": GoSub AO
 ' Get the start y co-ordinate
 GoSub GetExpressionMidB4EndBracket: x = x + 2 ' Get the expression that ends with a close bracket & move past it
@@ -7035,11 +7042,11 @@ A$ = "TSTA": C$ = "Check if D is a negative": GoSub AO
 A$ = "BPL": B$ = ">": C$ = "If value is 0 or more then check if we are > 191": GoSub AO
 A$ = "CLRB": C$ = "Make value zero": GoSub AO
 A$ = "BRA": B$ = "@SaveB1": C$ = "Save B on the stack": GoSub AO
-z$ = "!"
+Z$ = "!"
 A$ = "CMPD": B$ = "#191": C$ = "Check if B is > than 191": GoSub AO
 A$ = "BLE": B$ = "@SaveB1": C$ = "If value is 191 or < then skip ahead": GoSub AO
 A$ = "LDB": B$ = "#191": C$ = "Make the max size 191": GoSub AO
-z$ = "@SaveB1"
+Z$ = "@SaveB1"
 A$ = "PSHS": B$ = "B": C$ = "Save the y coordinate on the stack": GoSub AO
 Print #1, ' Need a space for @ in assembly
 ' Make Sure we have a -(
@@ -7056,11 +7063,11 @@ A$ = "TSTA": C$ = "Check if D is a negative": GoSub AO
 A$ = "BPL": B$ = ">": C$ = "If value is 0 or more then check if we are > 255": GoSub AO
 A$ = "CLRB": C$ = "Make value zero": GoSub AO
 A$ = "BRA": B$ = "@SaveB0": C$ = "Save B on the stack": GoSub AO
-z$ = "!"
+Z$ = "!"
 A$ = "CMPD": B$ = "#255": C$ = "Check if B is > than 255": GoSub AO
 A$ = "BLE": B$ = "@SaveB0": C$ = "If value is 255 or < then skip ahead": GoSub AO
 A$ = "LDB": B$ = "#255": C$ = "Make the max size 255": GoSub AO
-z$ = "@SaveB0"
+Z$ = "@SaveB0"
 A$ = "PSHS": B$ = "B": C$ = "Save the x coordinate value on the stack": GoSub AO
 ' Get the destination y co-ordinate
 GoSub GetExpressionMidB4EndBracket: x = x + 2 ' Get the expression that ends with a close bracket & move past it
@@ -7069,11 +7076,11 @@ A$ = "TSTA": C$ = "Check if D is a negative": GoSub AO
 A$ = "BPL": B$ = ">": C$ = "If value is 0 or more then check if we are > 191": GoSub AO
 A$ = "CLRB": C$ = "Make value zero": GoSub AO
 A$ = "BRA": B$ = "@SaveB1": C$ = "Save B on the stack": GoSub AO
-z$ = "!"
+Z$ = "!"
 A$ = "CMPD": B$ = "#191": C$ = "Check if B is > than 191": GoSub AO
 A$ = "BLE": B$ = "@SaveB1": C$ = "If value is 191 or < then skip ahead": GoSub AO
 A$ = "LDB": B$ = "#191": C$ = "Make the max size 191": GoSub AO
-z$ = "@SaveB1"
+Z$ = "@SaveB1"
 A$ = "PSHS": B$ = "B": C$ = "Save the y coordinate on the stack": GoSub AO
 Print #1, ' make sure to leave a blank line so the @ are all good
 x = x + 1 ' Skip &HF5
@@ -7100,11 +7107,11 @@ A$ = "TSTA": C$ = "Check if D is a negative": GoSub AO
 A$ = "BPL": B$ = ">": C$ = "If value is 0 or more then check if we are > 255": GoSub AO
 A$ = "CLRB": C$ = "Make value zero": GoSub AO
 A$ = "BRA": B$ = "@SaveB0": C$ = "Save B on the stack": GoSub AO
-z$ = "!"
+Z$ = "!"
 A$ = "CMPD": B$ = "#255": C$ = "Check if B is > than 255": GoSub AO
 A$ = "BLE": B$ = "@SaveB0": C$ = "If value is 255 or < then skip ahead": GoSub AO
 A$ = "LDB": B$ = "#255": C$ = "Make the max size 255": GoSub AO
-z$ = "@SaveB0"
+Z$ = "@SaveB0"
 A$ = "PSHS": B$ = "B": C$ = "Save the x coordinate value on the stack": GoSub AO
 ' Get the start y co-ordinate
 GoSub GetExpressionMidB4EndBracket: x = x + 2 ' Get the expression that ends with a close bracket & move past it
@@ -7114,11 +7121,11 @@ A$ = "TSTA": C$ = "Check if D is a negative": GoSub AO
 A$ = "BPL": B$ = ">": C$ = "If value is 0 or more then check if we are > 191": GoSub AO
 A$ = "CLRB": C$ = "Make value zero": GoSub AO
 A$ = "BRA": B$ = "@SaveB1": C$ = "Save B on the stack": GoSub AO
-z$ = "!"
+Z$ = "!"
 A$ = "CMPD": B$ = "#191": C$ = "Check if B is > than 191": GoSub AO
 A$ = "BLE": B$ = "@SaveB1": C$ = "If value is 191 or < then skip ahead": GoSub AO
 A$ = "LDB": B$ = "#191": C$ = "Make the max size 191": GoSub AO
-z$ = "@SaveB1"
+Z$ = "@SaveB1"
 A$ = "PSHS": B$ = "B": C$ = "Save the y coordinate on the stack": GoSub AO
 Print #1, ' Need a space for @ in assembly
 ' Make Sure we have a -(
@@ -7135,11 +7142,11 @@ A$ = "TSTA": C$ = "Check if D is a negative": GoSub AO
 A$ = "BPL": B$ = ">": C$ = "If value is 0 or more then check if we are > 255": GoSub AO
 A$ = "CLRB": C$ = "Make value zero": GoSub AO
 A$ = "BRA": B$ = "@SaveB0": C$ = "Save B on the stack": GoSub AO
-z$ = "!"
+Z$ = "!"
 A$ = "CMPD": B$ = "#255": C$ = "Check if B is > than 255": GoSub AO
 A$ = "BLE": B$ = "@SaveB0": C$ = "If value is 255 or < then skip ahead": GoSub AO
 A$ = "LDB": B$ = "#255": C$ = "Make the max size 255": GoSub AO
-z$ = "@SaveB0"
+Z$ = "@SaveB0"
 A$ = "PSHS": B$ = "B": C$ = "Save the x coordinate value on the stack": GoSub AO
 ' Get the destination y co-ordinate
 GoSub GetExpressionMidB4EndBracket: x = x + 2 ' Get the expression that ends with a close bracket & move past it
@@ -7148,11 +7155,11 @@ A$ = "TSTA": C$ = "Check if D is a negative": GoSub AO
 A$ = "BPL": B$ = ">": C$ = "If value is 0 or more then check if we are > 191": GoSub AO
 A$ = "CLRB": C$ = "Make value zero": GoSub AO
 A$ = "BRA": B$ = "@SaveB1": C$ = "Save B on the stack": GoSub AO
-z$ = "!"
+Z$ = "!"
 A$ = "CMPD": B$ = "#191": C$ = "Check if B is > than 191": GoSub AO
 A$ = "BLE": B$ = "@SaveB1": C$ = "If value is 191 or < then skip ahead": GoSub AO
 A$ = "LDB": B$ = "#191": C$ = "Make the max size 191": GoSub AO
-z$ = "@SaveB1"
+Z$ = "@SaveB1"
 A$ = "PSHS": B$ = "B": C$ = "Save the y coordinate on the stack": GoSub AO
 Print #1, ' make sure to leave a blank line so the @ are all good
 x = x + 1 ' Skip &HF5
@@ -7369,9 +7376,9 @@ A$ = "LDB": B$ = ",S+": C$ = "Get the disk # and fix the stack": GoSub AO
 A$ = "BNE": B$ = ">": C$ = "If not zero then skip ahead to do the JSR SDCLoadM1": GoSub AO
 A$ = "JSR": B$ = "SDCLoadM0": C$ = "Do a LOADM from Drive 0 of the SDC": GoSub AO
 A$ = "BRA": B$ = "@Done": GoSub AO
-z$ = "!"
+Z$ = "!"
 A$ = "JSR": B$ = "SDCLoadM1": C$ = "Do a LOADM from Drive 1 of the SDC": GoSub AO
-z$ = "@Done": GoSub AO
+Z$ = "@Done": GoSub AO
 Print #1, ' Leave a blank so the @Done works properly
 Return
 
@@ -7403,9 +7410,9 @@ A$ = "LDB": B$ = "6,S": C$ = "Get the disk #": GoSub AO
 A$ = "BNE": B$ = ">": C$ = "If not zero then skip ahead to do the JSR SDCLoadM1": GoSub AO
 A$ = "JSR": B$ = "SDCSaveM0": C$ = "Do a SAVEM to Drive 0 of the SDC": GoSub AO
 A$ = "BRA": B$ = "@Done": GoSub AO
-z$ = "!"
+Z$ = "!"
 A$ = "JSR": B$ = "SDCSaveM1": C$ = "Do a SAVEM to Drive 1 of the SDC": GoSub AO
-z$ = "@Done"
+Z$ = "@Done"
 A$ = "LEAS": B$ = "7,S": C$ = "Fix the stack": GoSub AO
 Print #1, ' Leave a blank so the @Done works properly
 Return
@@ -7445,7 +7452,7 @@ x$ = StringVariable$(v2)
 A$ = "LDY": B$ = "#_StrVar_" + x$ + "+1": C$ = "U points at the beginning of the 2nd string": GoSub AO
 A$ = "STB": B$ = "-1,Y": C$ = "Save the string size of the 2nd half of directory entry size": GoSub AO
 A$ = "LDX": B$ = "#_StrVar_PF01": C$ = "X points at the 256 byte directory listing": GoSub AO
-z$ = "!"
+Z$ = "!"
 A$ = "LDA": B$ = ",X+": C$ = "Read byte from the first 128 bytes": GoSub AO
 A$ = "STA": B$ = ",U+": C$ = "Write byte to the 1st variable": GoSub AO
 A$ = "LDA": B$ = "127,X": C$ = "Read byte from the 2nd 128 bytes": GoSub AO
@@ -7458,7 +7465,7 @@ GoSub GetExpressionB4CommaEOL 'Handle an expression that ends with a comma or EO
 GoSub ParseStringExpression ' Parse the String Expression, value will end up in _StrVar_PF00
 A$ = "LDX": B$ = "#_StrVar_PF00": C$ = "Swap _StrVar_PF00 and _StrVar_PF01": GoSub AO
 A$ = "LDU": B$ = "#_StrVar_PF01": GoSub AO
-z$ = "!"
+Z$ = "!"
 A$ = "LDA": B$ = ",X": GoSub AO
 A$ = "LDB": B$ = ",U": GoSub AO
 A$ = "STA": B$ = ",U+": GoSub AO
@@ -7471,7 +7478,7 @@ GoSub GetExpressionB4CommaEOL 'Handle an expression that ends with a comma or EO
 GoSub ParseStringExpression ' Parse the String Expression, value will end up in _StrVar_PF00
 A$ = "LDX": B$ = "#_StrVar_PF00": C$ = "Swap _StrVar_PF00 and _StrVar_PF01": GoSub AO
 A$ = "LDU": B$ = "#_StrVar_PF01": GoSub AO
-z$ = "!"
+Z$ = "!"
 A$ = "LDA": B$ = ",X": GoSub AO
 A$ = "LDB": B$ = ",U": GoSub AO
 A$ = "STA": B$ = ",U+": GoSub AO
@@ -7487,7 +7494,7 @@ A$ = "LDA": B$ = "_StrVar_PF01+1": C$ = "Should be a W or R": GoSub AO
 A$ = "SUBA": B$ = "#'R'": C$ = "If A was R it is now zero, anything else is a W": GoSub AO
 A$ = "BEQ": B$ = ">": C$ = "Skip if it's zero": GoSub AO
 A$ = "LDA": B$ = "#1": C$ = "Make A a 1": GoSub AO
-z$ = "!"
+Z$ = "!"
 A$ = "JSR": B$ = "SDCOpenFile": C$ = "Open File, A=0 Read or A=1 Write, file number in B (0 or 1)": GoSub AO
 Return
 
@@ -7497,7 +7504,7 @@ GoSub GetExpressionB4CommaEOL 'Handle an expression that ends with a comma or EO
 GoSub ParseStringExpression ' Parse the String Expression, value will end up in _StrVar_PF00
 A$ = "LDX": B$ = "#_StrVar_PF00": C$ = "Swap _StrVar_PF00 and _StrVar_PF01": GoSub AO
 A$ = "LDU": B$ = "#_StrVar_PF01": GoSub AO
-z$ = "!"
+Z$ = "!"
 A$ = "LDA": B$ = ",X": GoSub AO
 A$ = "LDB": B$ = ",U": GoSub AO
 A$ = "STA": B$ = ",U+": GoSub AO
@@ -7510,7 +7517,7 @@ GoSub GetExpressionB4CommaEOL 'Handle an expression that ends with a comma or EO
 GoSub ParseStringExpression ' Parse the String Expression, value will end up in _StrVar_PF00
 A$ = "LDX": B$ = "#_StrVar_PF00": C$ = "Swap _StrVar_PF00 and _StrVar_PF01": GoSub AO
 A$ = "LDU": B$ = "#_StrVar_PF01": GoSub AO
-z$ = "!"
+Z$ = "!"
 A$ = "LDA": B$ = ",X": GoSub AO
 A$ = "LDB": B$ = ",U": GoSub AO
 A$ = "STA": B$ = ",U+": GoSub AO
@@ -7526,7 +7533,7 @@ A$ = "LDA": B$ = "_StrVar_PF01+1": C$ = "Should be a W or R": GoSub AO
 A$ = "SUBA": B$ = "#'R'": C$ = "If A was R it is now zero, anything else is a W": GoSub AO
 A$ = "BEQ": B$ = ">": C$ = "Skip if it's zero": GoSub AO
 A$ = "LDA": B$ = "#1": C$ = "Make A a 1": GoSub AO
-z$ = "!"
+Z$ = "!"
 A$ = "JSR": B$ = "SDCOpenFile": C$ = "Open File, A=0 Read or A=1 Write, file number in B (0 or 1)": GoSub AO
 Return
 ' Write a byte to the SDC file 0, which must already be open
@@ -7588,7 +7595,7 @@ A$ = "JSR": B$ = "SDC_GetCurrentDirectory": C$ = "Get Current directory command"
 A$ = "LDX": B$ = "#_StrVar_PF" + Num$ + "+32": C$ = "X points at the buffer start, shift bytes one and set the first byte as the length of 32": GoSub AO
 A$ = "LEAU": B$ = "1,X": C$ = "U points at the address to store": GoSub AO
 A$ = "LDB": B$ = "#32": C$ = "32 bytes to copy": GoSub AO
-z$ = "!"
+Z$ = "!"
 A$ = "LDA": B$ = ",-X": C$ = "Get the source byte": GoSub AO
 A$ = "STA": B$ = ",-U": C$ = "Save the destination byte": GoSub AO
 A$ = "DECB": C$ = "Decrement counter": GoSub AO
@@ -7608,7 +7615,7 @@ A$ = "LDB": B$ = "#32": C$ = "# of bytes to copy": GoSub AO
 A$ = "LDX": B$ = "#_StrVar_IFRight": C$ = "Source file info from the SDC": GoSub AO
 A$ = "LDU": B$ = "#_StrVar_PF" + Num$: C$ = "Destination string variable": GoSub AO
 A$ = "STB": B$ = ",U+": C$ = "first byte is the length of the string": GoSub AO
-z$ = "!"
+Z$ = "!"
 A$ = "LDA": B$ = ",X+": C$ = "Get a byte": GoSub AO
 A$ = "STA": B$ = ",U+": C$ = "save the byte": GoSub AO
 A$ = "DECB": C$ = "decrement our counter": GoSub AO
@@ -7644,7 +7651,7 @@ If Array(x - 1) <> &H2C Then Print "first comma is missing for SDCSETPOS command
 ' Get the First byte of the LBN
 GoSub GetExpressionB4Comma: x = x + 2 'Handle an expression that ends with a comma skip past it
 ExType = 0: GoSub ParseNumericExpression ' Parse the Numeric Expression result with value in D
-z$ = "!"
+Z$ = "!"
 A$ = "STB": B$ = ",X": C$ = "Save LBN number on the stack": GoSub AO
 If Array(x - 1) <> &H2C Then Print "second comma is missing for SDCSETPOS command on";: GoTo FoundError
 ' Get the 2nd byte of the LBN
@@ -7861,7 +7868,7 @@ WHILEStack(WhileStackPointer) = WhileCount
 Num = WhileCount: GoSub NumAsString 'Convert number in Num to a string without spaces as Num$
 If Num < 10 Then Num$ = "0" + Num$
 WhileLoopNum$ = Num$
-z$ = "WhileLoop_" + WhileLoopNum$: C$ = "Start of WHILE/WEND loop": GoSub AO
+Z$ = "WhileLoop_" + WhileLoopNum$: C$ = "Start of WHILE/WEND loop": GoSub AO
 CheckIfTrue$ = ""
 v = 0
 Do Until v = &HF5 And (Array(x) = &H0D Or Array(x) = &H3A) ' Keep copying until we get EOL or Colon
@@ -7879,7 +7886,7 @@ If WhileStackPointer = 0 Then Print "Error: WEND without WHILE on";: GoTo FoundE
 Num = WHILEStack(WhileStackPointer): GoSub NumAsString 'Convert number in Num to a string without spaces as Num$
 If Num < 10 Then Num$ = "0" + Num$
 A$ = "BRA": B$ = "WhileLoop_" + Num$: C$ = "Goto the start of this WHILE/WEND loop": GoSub AO
-z$ = "Wend_" + Num$: C$ = "End of WHILE/WEND loop": GoSub AO
+Z$ = "Wend_" + Num$: C$ = "End of WHILE/WEND loop": GoSub AO
 WhileStackPointer = WhileStackPointer - 1
 Return
 DoEXIT:
@@ -7914,7 +7921,7 @@ DOStackPointer = DOStackPointer + 1
 DOStack(DOStackPointer) = DOCount
 Num = DOCount: GoSub NumAsString 'Convert number in Num to a string without spaces as Num$
 If Num < 10 Then Num$ = "0" + Num$
-z$ = "DOStart_" + Num$: C$ = "Start of WHILE/UNTIL loop": GoSub AO
+Z$ = "DOStart_" + Num$: C$ = "Start of WHILE/UNTIL loop": GoSub AO
 v = Array(x): x = x + 1
 If v = &HF5 And (Array(x) = &H0D Or Array(x) = &H3A) Then
     ' Just a DO command without WHILE or UNTIL
@@ -7972,7 +7979,7 @@ If v = &HF5 And (Array(x) = &H0D Or Array(x) = &H3A) Then
     Num = DOStack(DOStackPointer): GoSub NumAsString 'Convert number in Num to a string without spaces as Num$
     If Num < 10 Then Num$ = "0" + Num$
     A$ = "BRA": B$ = "DOStart_" + Num$: C$ = "Go to the start of the DO loop": GoSub AO
-    z$ = "DoneLoop_" + Num$: C$ = "End of DO Loop": GoSub AO
+    Z$ = "DoneLoop_" + Num$: C$ = "End of DO Loop": GoSub AO
     DOStackPointer = DOStackPointer - 1
     Return
 End If
@@ -7994,7 +8001,7 @@ If v = WHILE_CMD Then
     Num = DOStack(DOStackPointer): GoSub NumAsString 'Convert number in Num to a string without spaces as Num$
     If Num < 10 Then Num$ = "0" + Num$
     A$ = "BNE": B$ = "DOStart_" + Num$: C$ = "If the result is a true then goto the start of the DO/Loop again": GoSub AO
-    z$ = "DoneLoop_" + Num$: C$ = "End of DO Loop": GoSub AO
+    Z$ = "DoneLoop_" + Num$: C$ = "End of DO Loop": GoSub AO
     DOStackPointer = DOStackPointer - 1
     Return
 End If
@@ -8014,7 +8021,7 @@ If v = UNTIL_CMD Then
     Num = DOStack(DOStackPointer): GoSub NumAsString 'Convert number in Num to a string without spaces as Num$
     If Num < 10 Then Num$ = "0" + Num$
     A$ = "BEQ": B$ = "DOStart_" + Num$: C$ = "If the result is a false then goto the start of the DO/Loop": GoSub AO
-    z$ = "DoneLoop_" + Num$: C$ = "End of DO Loop": GoSub AO
+    Z$ = "DoneLoop_" + Num$: C$ = "End of DO Loop": GoSub AO
     DOStackPointer = DOStackPointer - 1
     Return
 End If
@@ -8063,7 +8070,7 @@ NextCaseNumber$ = CaseNumber$ + "_" + Num$
 Num = CaseCount(SELECTStackPointer): GoSub NumAsString 'Convert number in Num to a string without spaces as Num$
 If Num < 10 Then Num$ = "0" + Num$
 CaseNumber$ = CaseNumber$ + "_" + Num$
-z$ = "_CaseCheck_" + CaseNumber$: C$ = "Start of the next CASE": GoSub AO
+Z$ = "_CaseCheck_" + CaseNumber$: C$ = "Start of the next CASE": GoSub AO
 
 ' Check for CASE ELSE
 If Array(x) = &HFF And Array(x + 1) * 256 + Array(x + 2) = ELSE_CMD Then
@@ -8071,7 +8078,7 @@ If Array(x) = &HFF And Array(x + 1) * 256 + Array(x + 2) = ELSE_CMD Then
     CaseElseFlag = 1
     Num = SELECTSTack(SELECTStackPointer): GoSub NumAsString 'Convert number in Num to a string without spaces as Num$
     If Num < 10 Then Num$ = "0" + Num$
-    z$ = "; CASE ELSE Code for SELECT " + Num$: GoSub AO
+    Z$ = "; CASE ELSE Code for SELECT " + Num$: GoSub AO
     GoSub SkipUntilEOLColon ' Skip until we find an EOL or a Colon and return
     A$ = "LDD": B$ = "[EveryCasePointer]": C$ = "A = flag pointer for everycase": GoSub AO
     '    A$ = "TSTA": C$ = "Get the CASE/EVERYCASE Flag": GoSub AO
@@ -8161,7 +8168,7 @@ Else
                 GoSub GoCheckIfTrue ' This parses CheckIfTrue$, gets it ready to be evaluated in the string NewString$
                 GoSub EvaluateNewString ' This Evaluates NewString$ and returns with a LDD with the result, zero is false so it will do an ELSE, if there is one otherwise do what is after the THEN
                 A$ = "BEQ": B$ = "_CaseCheck_" + NextCaseNumber$: C$ = "If result is zero = False then jump to the next case/ELSE Case or END Select": GoSub AO
-                z$ = "_DOCase_" + CaseNumber$: C$ = "Case match, do the code for this CASE": GoSub AO
+                Z$ = "_DOCase_" + CaseNumber$: C$ = "Case match, do the code for this CASE": GoSub AO
                 If EvCase(SELECTStackPointer) = 1 Then
                     ' We are in an EVERYCASE
                     A$ = "LDD": B$ = "#$0101": C$ = "flag that we've done at least one CASE": GoSub AO
@@ -8211,9 +8218,9 @@ A$ = "BEQ": B$ = ">": C$ = "Exit with D = 0": GoSub AO
 A$ = "BGT": B$ = "@Positive": C$ = "D is positive": GoSub AO
 A$ = "LDD": B$ = "#-1": C$ = "Otherwise D is negative": GoSub AO
 A$ = "BRA": B$ = ">": C$ = "Exit with D = -1": GoSub AO
-z$ = "@Positive": GoSub AO
+Z$ = "@Positive": GoSub AO
 A$ = "LDD": B$ = "#1": C$ = "D is positive": GoSub AO
-z$ = "!": GoSub AO
+Z$ = "!": GoSub AO
 Print #1,
 Return
 DoINT:
@@ -8246,7 +8253,7 @@ A$ = "BPL": B$ = ">": C$ = "If positive simply skip over changing D's value": Go
 A$ = "PSHS": B$ = "D": C$ = "Save D on the stack": GoSub AO
 A$ = "LDD": B$ = "#$0000": C$ = "D=0": GoSub AO
 A$ = "SUBD": B$ = ",S++": C$ = "D=0-D, fix the stack": GoSub AO
-z$ = "!": GoSub AO
+Z$ = "!": GoSub AO
 Return
 DoUSR:
 Color 14
@@ -8260,7 +8267,7 @@ resultP30(PE30Count) = Parse00_Term ' this will return with the next value in D
 Print #1, "; "; Num$
 A$ = "BEQ": B$ = ">": C$ = "If D is zero, return with zero": GoSub AO
 A$ = "JSR": B$ = "Random": C$ = "Convert number in B to a Random number in D": GoSub AO ' - Old 8 bit random number generator
-z$ = "!": GoSub AO
+Z$ = "!": GoSub AO
 Return
 DoRNDZ:
 ' 8 bit Random number from 0 to B
@@ -8268,7 +8275,7 @@ GoSub ParseExpression0FlagErase ' Recursively check the next value
 resultP30(PE30Count) = Parse00_Term ' this will return with the next value in D
 A$ = "BEQ": B$ = ">": C$ = "If D is zero, return with zero": GoSub AO
 A$ = "JSR": B$ = "RandomZ": C$ = "Convert number in B to a Random number in D": GoSub AO
-z$ = "!": GoSub AO
+Z$ = "!": GoSub AO
 Return
 DoRNDL:
 ' 16 Bit Random Number from 1 to D
@@ -8276,7 +8283,7 @@ GoSub ParseExpression0FlagErase ' Recursively check the next value
 resultP30(PE30Count) = Parse00_Term ' this will return with the next value in D
 A$ = "BEQ": B$ = ">": C$ = "If D is zero, return with zero": GoSub AO
 A$ = "JSR": B$ = "RandomD": C$ = "Convert unsigned 16 bit interger range in D and return with Random number in D, D=RND(D), Random number from 1 to D": GoSub AO
-z$ = "!": GoSub AO
+Z$ = "!": GoSub AO
 Return
 DoSIN:
 Color 14
@@ -8333,7 +8340,7 @@ If ExpressionCount > 0 Then ' Check if we are in the middle of an expression
     A$ = "CMPB": B$ = "#6": C$ = "Check the number of decimal places": GoSub AO
     A$ = "BHI": B$ = "@NotANumber": C$ = "If more than 7 then we have a problem": GoSub AO
     A$ = "BRA": B$ = ">": C$ = "Skip ahead, we are good to go with a negative number this size": GoSub AO
-    z$ = "@NotNegative": GoSub AO
+    Z$ = "@NotNegative": GoSub AO
     A$ = "CMPA": B$ = "#'+": C$ = "Check if the user manually used a plus symbol": GoSub AO
     A$ = "BNE": B$ = "@NotPlus": C$ = "If poistive we can only have a max of 5 numbers": GoSub AO
     A$ = "LDA": B$ = "#' '": C$ = "Make a + into a space, so it will be ignored": GoSub AO
@@ -8341,26 +8348,26 @@ If ExpressionCount > 0 Then ' Check if we are in the middle of an expression
     A$ = "CMPB": B$ = "#6": C$ = "Check the number of decimal places": GoSub AO
     A$ = "BHI": B$ = "@NotANumber": C$ = "If more than 6 then we have a problem": GoSub AO
     A$ = "BRA": B$ = ">": C$ = "Skip ahead, we are good to go with a positive number this size": GoSub AO
-    z$ = "@NotPlus": GoSub AO
+    Z$ = "@NotPlus": GoSub AO
     A$ = "CMPB": B$ = "#5": C$ = "Check the number of decimal places": GoSub AO
     A$ = "BHI": B$ = "@NotANumber": C$ = "If more than 6 then we have a problem": GoSub AO
-    z$ = "!"
+    Z$ = "!"
     A$ = "LDX": B$ = "#DecNumber": C$ = "X points at the start of the table of data to grab each time": GoSub AO
-    z$ = "!"
+    Z$ = "!"
     A$ = "LDA": B$ = ",U+": C$ = "Get the source byte": GoSub AO
     A$ = "CMPA": B$ = "#$20": C$ = "Check for a space": GoSub AO
     A$ = "BEQ": B$ = "@SkipSpace": C$ = "Skip if found": GoSub AO
     A$ = "STA": B$ = ",X+": C$ = "Add it to the the buffer": GoSub AO
-    z$ = "@SkipSpace": GoSub AO
+    Z$ = "@SkipSpace": GoSub AO
     A$ = "DECB": C$ = "Decrement the counter": GoSub AO
     A$ = "BNE": B$ = "<": C$ = "": GoSub AO
     A$ = "CLR": B$ = ",X": C$ = "Flag last byte as 0, so we know that we have reached the end of the string": GoSub AO
     A$ = "JSR": B$ = "DecToD": C$ = "Convert the string in the buffer to a number": GoSub AO
     A$ = "BEQ": B$ = "@Done": C$ = "Skip to Done if conversion went well": GoSub AO
-    z$ = "@NotANumber": GoSub AO
+    Z$ = "@NotANumber": GoSub AO
     A$ = "LDD": B$ = "#$0000": C$ = "": GoSub AO
     A$ = "BRA": B$ = "@Done": C$ = "Skip past the HEX conversion code": GoSub AO
-    z$ = "@ConvertHex": GoSub AO
+    Z$ = "@ConvertHex": GoSub AO
     A$ = "LDA": B$ = "1,U": C$ = "A = the first byte of source string": GoSub AO
     A$ = "CMPA": B$ = "#'H": C$ = "Check if the value is is an H, could be hex that starts with &H": GoSub AO
     A$ = "BNE": B$ = "@NotNegative": C$ = "If not &H then return with -1": GoSub AO
@@ -8370,7 +8377,7 @@ If ExpressionCount > 0 Then ' Check if we are in the middle of an expression
     A$ = "BNE": B$ = ">": C$ = "Skip ahead if size is more than zero": GoSub AO
     A$ = "LDD": B$ = "#$0000": C$ = "Make D zero": GoSub AO
     A$ = "BRA": B$ = "@Done": C$ = "We are done": GoSub AO
-    z$ = "!"
+    Z$ = "!"
     A$ = "CMPB": B$ = "#4": C$ = "Check the number of HEX digits": GoSub AO
     A$ = "BHI": B$ = "@NotANumber": C$ = "If more than 4 then we have a problem": GoSub AO
     A$ = "JSR": B$ = "HexStringToD": C$ = "Convert the Hex value @ X - Length B to value in D": GoSub AO
@@ -8390,7 +8397,7 @@ If ExpressionCount > 0 Then ' Check if we are in the middle of an expression
     A$ = "LDB": B$ = StringPointerTemp$: C$ = "B = the size of original string": GoSub AO
     A$ = "BEQ": B$ = ">": C$ = "If the Length is zero then return a value of zero": GoSub AO
     A$ = "LDB": B$ = StringPointerTemp$ + "+1": C$ = "B = the value of the first byte of the string": GoSub AO
-    z$ = "!"
+    Z$ = "!"
     A$ = "CLRA": GoSub AO
 Else
     Print "String commands should always have an ExpressionCount > 0, doing";: GoTo FoundError
@@ -8419,11 +8426,11 @@ A$ = "CMPD": B$ = "#0": C$ = "Check if the value with zero": GoSub AO
 A$ = "BGE": B$ = ">": C$ = "Check if the value is >= to 0": GoSub AO
 A$ = "CLRB": C$ = "Make B = 0": GoSub AO
 A$ = "BRA": B$ = "@JoyNumGood": C$ = "We have a good value for joystick number, skip ahead": GoSub AO
-z$ = "!"
+Z$ = "!"
 A$ = "CMPD": B$ = "#3": C$ = "Check if the value is higher than 3": GoSub AO
 A$ = "BLE": B$ = "@JoyNumGood": C$ = "If the number is <= 3 skip ahead": GoSub AO
 A$ = "LDB": B$ = "#3": C$ = "Make B = 3": GoSub AO
-z$ = "@JoyNumGood": GoSub AO
+Z$ = "@JoyNumGood": GoSub AO
 A$ = "JSR": B$ = "JOYSTK": C$ = "Go handle analog joystick reading return with result in D": GoSub AO
 Print #1,
 Return
@@ -8653,7 +8660,7 @@ If ExpressionCount > 0 Then ' Check if we are in the middle of an expression
     End If
     'not a number, so we start searching from position 1
     A$ = "LDD": B$ = "#$0001": C$ = "Force D to be 1": GoSub AO
-    z$ = "!": GoSub AO
+    Z$ = "!": GoSub AO
     A$ = "PSHS": B$ = "D": C$ = "Save the Start location to test at on the stack": GoSub AO
     GoSub ParseStringExpression0 ' Recursively get the next string value
     resultP10$(PE10Count) = Parse00_Term$
@@ -8666,12 +8673,12 @@ If ExpressionCount > 0 Then ' Check if we are in the middle of an expression
     A$ = "LDX": B$ = "#_StrVar_IFRight": C$ = "X points at the length of the destination string, Use _StrVar_IFRight as a Temp to compare against": GoSub AO
     A$ = "STB": B$ = ",X+": C$ = "Set the size of the destination string, X now points at the beginning of the destination data": GoSub AO
     A$ = "BEQ": B$ = "Done@": C$ = "If B=0 then no need to copy the string": GoSub AO
-    z$ = "!"
+    Z$ = "!"
     A$ = "LDA": B$ = ",U+": C$ = "Get a source byte": GoSub AO
     A$ = "STA": B$ = ",X+": C$ = "Write the destination byte": GoSub AO
     A$ = "DECB": C$ = "Decrement the counter": GoSub AO
     A$ = "BNE": B$ = "<": C$ = "Loop until all data is copied to the destination string": GoSub AO
-    z$ = "Done@": GoSub AO
+    Z$ = "Done@": GoSub AO
     Print #1,
     ' Get the string to search through in "_StrVar_PF" + Num$
     index(ExpressionCount) = index(ExpressionCount) + 2 ' Consume the comma
@@ -8695,12 +8702,12 @@ If ExpressionCount > 0 Then ' Check if we are in the middle of an expression
     ' Try and find search string in base string starting at the position in the stack
     A$ = "LDB": B$ = "1,S": C$ = "Get the start address in B": GoSub AO
     A$ = "ABX": C$ = "Move X to the correct location to start searching in the base string": GoSub AO
-    z$ = "BigLoop@": GoSub AO
+    Z$ = "BigLoop@": GoSub AO
     A$ = "LEAY": B$ = "1,X": C$ = "Y = the next starting point to test at": GoSub AO
     A$ = "LDU": B$ = "#" + StringPointerTemp$: C$ = "U points at the start of the search string": GoSub AO
     A$ = "LDB": B$ = ",U+": C$ = "Get the length of the search string and move U to point to the start of the search string": GoSub AO
     A$ = "INCB": C$ = "B=B+1, because we pre decrement the testloop below": GoSub AO
-    z$ = "!"
+    Z$ = "!"
     A$ = "DECB": C$ = "B=B-1": GoSub AO
     A$ = "BEQ": B$ = "FoundMatch@": C$ = "If we get to zero then we found the value all test the same": GoSub AO
     A$ = "LDA": B$ = ",U+": C$ = "Get byte to search": GoSub AO
@@ -8709,15 +8716,15 @@ If ExpressionCount > 0 Then ' Check if we are in the middle of an expression
     A$ = "LEAX": B$ = ",Y": C$ = "X = the next starting point to test at": GoSub AO
     A$ = "DEC": B$ = ",S": C$ = "decrement the counter": GoSub AO
     A$ = "BNE": B$ = "BigLoop@": C$ = "Go try testing some more": GoSub AO
-    z$ = "; If we get here the search string failed"
-    z$ = "ReturnZero@": GoSub AO
+    Z$ = "; If we get here the search string failed"
+    Z$ = "ReturnZero@": GoSub AO
     A$ = "LDD": B$ = "#$0000": C$ = "D is zero, = no match": GoSub AO
     A$ = "BRA": B$ = ">": C$ = "Skip ahead": GoSub AO
-    z$ = "FoundMatch@": GoSub AO
+    Z$ = "FoundMatch@": GoSub AO
     A$ = "LEAX": B$ = "-" + "_StrVar_IFRight" + ",X": C$ = "X = the position": GoSub AO
     A$ = "TFR": B$ = "X,D": C$ = "D = X = starting position": GoSub AO
     A$ = "SUBB": B$ = StringPointerTemp$: C$ = "B=X-Length of the base string": GoSub AO
-    z$ = "!": GoSub AO
+    Z$ = "!": GoSub AO
     A$ = "LEAS": B$ = "2,S": C$ = "Fix the stack, D has the correct value": GoSub AO
 End If
 Return
@@ -8738,11 +8745,11 @@ If ExpressionCount > 0 Then ' Check if we are in the middle of an expression
     A$ = "CMPD": B$ = "#$0000": C$ = "Check if D is a negative": GoSub AO
     A$ = "BPL": B$ = ">": C$ = "If value is 0 or more then check if we are > 255": GoSub AO
     A$ = "CLRB": C$ = "Make value zero": GoSub AO
-    z$ = "!"
+    Z$ = "!"
     A$ = "CMPD": B$ = "#255": C$ = "Check if D is > than 255": GoSub AO
     A$ = "BLE": B$ = ">": C$ = "If value is 255 or < then skip ahead": GoSub AO
     A$ = "LDB": B$ = "#255": C$ = "Make the max size 255": GoSub AO
-    z$ = "!"
+    Z$ = "!"
     A$ = "PSHS": B$ = "B": C$ = "Save the horizontal value on the stack": GoSub AO
     ' test for Comma
     If Mid$(Expression$(ExpressionCount), index(ExpressionCount), 2) <> Chr$(&HF5) + "," Then Print "PPOINT command can't find a comma in";: GoTo FoundError
@@ -8753,11 +8760,11 @@ If ExpressionCount > 0 Then ' Check if we are in the middle of an expression
     A$ = "CMPD": B$ = "#$0000": C$ = "Check if D is a negative": GoSub AO
     A$ = "BPL": B$ = ">": C$ = "If value is 0 or more then check if we are > 191": GoSub AO
     A$ = "CLRB": C$ = "Make value zero": GoSub AO
-    z$ = "!"
+    Z$ = "!"
     A$ = "CMPD": B$ = "#191": C$ = "Check if B is > than 191": GoSub AO
     A$ = "BLE": B$ = ">": C$ = "If value is 31 or < then skip ahead": GoSub AO
     A$ = "LDB": B$ = "#191": C$ = "Make the max size 191": GoSub AO
-    z$ = "!"
+    Z$ = "!"
     A$ = "TFR": B$ = "B,A": C$ = "A = y co-ordinate": GoSub AO
     A$ = "PULS": B$ = "B": C$ = "Get the x co-ordinate": GoSub AO
     A$ = "JSR": B$ = "PPOINT4": C$ = "Return with the colour value of the PPoint on screen in B": GoSub AO
@@ -8813,24 +8820,6 @@ Print "Can't do command DSKO yet, found on line "; linelabel$
 Color 15
 System
 
-' Bit 0 is the Computer Type, 0 = CoCo 1 or CoCo 2, 1 = CoCo 3
-' Bit 7 is the CPU type,      0 = 6809, 1 = 6309
-DoCOCOHARDWARE:
-If ExpressionCount > 0 Then ' Check if we are in the middle of an expression
-    ' Yes we are in an existing expression
-    GoSub ParseExpression0FlagErase ' Recursively check the next value
-    resultP30(PE30Count) = Parse00_Term ' this will return with the next value in D
-Else
-    ' Get the numeric value before a Close bracket
-    v = Array(x): x = x + 1 ' skip the open bracket
-    ' Get first number in D
-    GoSub GetExpressionMidB4EndBracket: x = x + 2 ' Get the expression that ends with a close bracket & move past it
-    ExType = 0: GoSub ParseNumericExpression ' Parse the Numeric Expression
-End If
-A$ = "CLRA":: C$ = "A=0": GoSub AO
-A$ = "LDB": B$ = "CoCoHardware": C$ = "Get the CoCo Hardware byte and return it to the user": GoSub AO
-Return
-
 ' Send Raw string to the CoCoMP3 (for the power user)
 ' I=COCOMP3_RAW$(O$)
 ' O$ is a string with the hex values you want to send to the CoCoMP3
@@ -8844,7 +8833,7 @@ StringPointerTemp$ = "_StrVar_PF" + Num$ 'StringPointerTemp$ = the Temp string p
 A$ = "LDX": B$ = "#" + StringPointerTemp$: C$ = "X points at the string to send to the CoCoMP3": GoSub AO
 A$ = "LDB": B$ = ",X+": C$ = "B = the length of the string and X now points at the first byte of the string": GoSub AO
 A$ = "JSR": B$ = "SendToCoCoMP3": C$ = "Send the command to the CoCoMP3, value of A doesn't matter for RAW codes": GoSub AO
-z$ = "!": GoSub AO
+Z$ = "!": GoSub AO
 Return
 
 ' Set the audio Mode of CoCoMP3 to either always set AUDIO ON when called, or to leave the Audio settings unchanged
@@ -9443,7 +9432,7 @@ Num = StrParseCount: GoSub NumAsString 'Convert number in Num to a string withou
 If Num < 10 Then Num$ = "0" + Num$
 A$ = "LDX": B$ = "#_StrVar_PF" + Num$ + "+1": C$ = "X points at the copy of the string we want to trim" + Num$: GoSub AO
 A$ = "LDA": B$ = "-1,X": C$ = "A = the size of original string": GoSub AO
-z$ = "!"
+Z$ = "!"
 A$ = "TSTA": C$ = "Is A zero?": GoSub AO
 A$ = "BEQ": B$ = "@Done": C$ = "If the string is blank we are done": GoSub AO
 A$ = "LDB": B$ = ",X+": C$ = "Get a byte, and move pointer to the right": GoSub AO
@@ -9460,7 +9449,7 @@ A$ = "SUBB": B$ = "_StrVar_PF" + Num$: C$ = "B=B-new size": GoSub AO
 A$ = "ABX": C$ = "X=X+B": GoSub AO
 A$ = "LDB": B$ = "_StrVar_PF" + Num$: C$ = "B = the new size": GoSub AO
 A$ = "LDU": B$ = "#_StrVar_PF" + Num$ + "+1": C$ = "U points at the start of the string we want to trim" + Num$: GoSub AO
-z$ = "!"
+Z$ = "!"
 A$ = "LDA": B$ = ",X+": C$ = "Get a byte, and move pointer to the right": GoSub AO
 A$ = "STA": B$ = ",U+": C$ = "Put a byte, and move pointer to the right": GoSub AO
 A$ = "DECB": C$ = "Decrement the counter": GoSub AO
@@ -9468,13 +9457,13 @@ A$ = "BNE": B$ = "<": C$ = "Keep copying if not zero": GoSub AO
 A$ = "LDX": B$ = "#_StrVar_PF" + Num$ + "+1": C$ = "X points at the copy of the string we want to trim" + Num$: GoSub AO
 A$ = "LDB": B$ = "-1,X": C$ = "B = the size of original string": GoSub AO
 A$ = "ABX": C$ = "X=X+B": C$ = "X points at the end of the string": GoSub AO
-z$ = "!"
+Z$ = "!"
 A$ = "LDA": B$ = ",-X": C$ = "Move left and Get a byte": GoSub AO
 A$ = "DECB": C$ = "Decrement the counter": GoSub AO
 A$ = "CMPA": B$ = "#$20": C$ = "Is the byte a space?": GoSub AO
 A$ = "BEQ": B$ = "<": C$ = "Loop if so": GoSub AO
 A$ = "INCB": C$ = "Fix the counter": GoSub AO
-z$ = "@Done"
+Z$ = "@Done"
 A$ = "STB": B$ = "_StrVar_PF" + Num$: C$ = "Update the new size as B": GoSub AO
 Print #1,
 Return
@@ -9488,7 +9477,7 @@ Num = StrParseCount: GoSub NumAsString 'Convert number in Num to a string withou
 If Num < 10 Then Num$ = "0" + Num$
 A$ = "LDX": B$ = "#_StrVar_PF" + Num$ + "+1": C$ = "X points at the copy of the string we want to trim" + Num$: GoSub AO
 A$ = "LDA": B$ = "-1,X": C$ = "A = the size of original string": GoSub AO
-z$ = "!"
+Z$ = "!"
 A$ = "TSTA": C$ = "Is A zero?": GoSub AO
 A$ = "BEQ": B$ = "@Done": C$ = "If the string is blank we are done": GoSub AO
 A$ = "LDB": B$ = ",X+": C$ = "Get a byte, and move pointer to the right": GoSub AO
@@ -9505,15 +9494,15 @@ A$ = "SUBB": B$ = "_StrVar_PF" + Num$: C$ = "B=B-new size": GoSub AO
 A$ = "ABX": C$ = "X=X+B": GoSub AO
 A$ = "LDB": B$ = "_StrVar_PF" + Num$: C$ = "B = the new size": GoSub AO
 A$ = "LDU": B$ = "#_StrVar_PF" + Num$ + "+1": C$ = "U points at the start of the string we want to trim" + Num$: GoSub AO
-z$ = "!"
+Z$ = "!"
 A$ = "LDA": B$ = ",X+": C$ = "Get a byte, and move pointer to the right": GoSub AO
 A$ = "STA": B$ = ",U+": C$ = "Put a byte, and move pointer to the right": GoSub AO
 A$ = "DECB": C$ = "Decrement the counter": GoSub AO
 A$ = "BNE": B$ = "<": C$ = "Keep copying if not zero": GoSub AO
 A$ = "BRA": B$ = "@Done": C$ = "If the string is blank we are done": GoSub AO
-z$ = "@SaveB"
+Z$ = "@SaveB"
 A$ = "STB": B$ = "_StrVar_PF" + Num$: C$ = "Update the new size as B": GoSub AO
-z$ = "@Done": GoSub AO
+Z$ = "@Done": GoSub AO
 Print #1,
 Return
 
@@ -9527,7 +9516,7 @@ If Num < 10 Then Num$ = "0" + Num$
 A$ = "LDX": B$ = "#_StrVar_PF" + Num$ + "+1": C$ = "X points at the copy of the string we want to trim" + Num$: GoSub AO
 A$ = "LDB": B$ = "-1,X": C$ = "B = the size of original string": GoSub AO
 A$ = "ABX": C$ = "X=X+B": GoSub AO
-z$ = "!"
+Z$ = "!"
 A$ = "TSTB": C$ = "Is B zero?": GoSub AO
 A$ = "BEQ": B$ = "@SaveB": C$ = "If the string is blank we are done": GoSub AO
 A$ = "LDA": B$ = ",-X": C$ = "Move left and Get a byte": GoSub AO
@@ -9535,9 +9524,9 @@ A$ = "DECB": C$ = "Decrement the counter": GoSub AO
 A$ = "CMPA": B$ = "#$20": C$ = "Is the byte a space?": GoSub AO
 A$ = "BEQ": B$ = "<": C$ = "Loop if so": GoSub AO
 A$ = "INCB": C$ = "Fix the counter": GoSub AO
-z$ = "@SaveB"
+Z$ = "@SaveB"
 A$ = "STB": B$ = "_StrVar_PF" + Num$: C$ = "Update the new size as B": GoSub AO
-z$ = "@Done": GoSub AO
+Z$ = "@Done": GoSub AO
 Print #1,
 Return
 
@@ -9576,15 +9565,15 @@ A$ = "PSHS": B$ = "D": C$ = "Save D on the stack": GoSub AO
 A$ = "BPL": B$ = ">": C$ = "If the Length is > zero then skip ahead": GoSub AO
 A$ = "CLRB": C$ = "Make the size of the string zero (NULL)": GoSub AO
 A$ = "BRA": B$ = "@StoreB": C$ = "Update the size of the string as zero and exit": GoSub AO
-z$ = "!"
+Z$ = "!"
 A$ = "CLRA": GoSub AO
 A$ = "LDB": B$ = StringPointerTemp$: C$ = "B = the size of original string": GoSub AO
 A$ = "CMPD": B$ = ",S": C$ = "Compare the original size with the new size": GoSub AO
 A$ = "BLS": B$ = "@Done": C$ = "if the origianl size is <= the new size then leave as is, goto @Done": GoSub AO
 A$ = "LDD": B$ = ",S": C$ = "Get The new size in d (really B)": GoSub AO
-z$ = "@StoreB"
+Z$ = "@StoreB"
 A$ = "STB": B$ = StringPointerTemp$: C$ = "Update the new size as B": GoSub AO
-z$ = "@Done"
+Z$ = "@Done"
 A$ = "PULS": B$ = "D": C$ = "Fix the Stack": GoSub AO
 Print #1, "!"
 Print #1,
@@ -9604,7 +9593,7 @@ A$ = "PSHS": B$ = "D": C$ = "Save D on the stack": GoSub AO
 A$ = "BPL": B$ = ">": C$ = "If the Length is > zero then skip ahead": GoSub AO
 A$ = "CLRB": C$ = "Make the size of the string zero (NULL)": GoSub AO
 A$ = "BRA": B$ = "@StoreB": C$ = "Update the size of the string as zero and exit": GoSub AO
-z$ = "!"
+Z$ = "!"
 A$ = "CLRA": C$ = "Clear A so we can use D as B (make sure 16 bit numbers are handled correctly)": GoSub AO
 A$ = "LDB": B$ = StringPointerTemp$: C$ = "B = the size of original string": GoSub AO
 A$ = "SUBD": B$ = ",S": C$ = "Compare the original size with the new size and D = the starting location to copy from": GoSub AO
@@ -9614,15 +9603,15 @@ A$ = "ABX": C$ = "Move X to location to start copying from": GoSub AO
 A$ = "LDD": B$ = ",S": C$ = "Get The new size in d (really B)": GoSub AO
 A$ = "LDU": B$ = "#" + StringPointerTemp$: C$ = "U= Start of the string": GoSub AO
 A$ = "STB": B$ = ",U+": C$ = "Save the new length of the string and move the U pointer forward": GoSub AO
-z$ = "!"
+Z$ = "!"
 A$ = "LDA": B$ = ",X+": C$ = "Read A": GoSub AO
 A$ = "STA": B$ = ",U+": C$ = "Save A": GoSub AO
 A$ = "DECB": C$ = "Decrement the length to copy counter": GoSub AO
 A$ = "BNE": B$ = "<": C$ = "Keep copying, until we've reached zero": GoSub AO
 A$ = "BRA": B$ = "@Done": C$ = "All done, fix the stack and exit": GoSub AO
-z$ = "@StoreB"
+Z$ = "@StoreB"
 A$ = "STB": B$ = StringPointerTemp$: C$ = "Update the new size as B": GoSub AO
-z$ = "@Done"
+Z$ = "@Done"
 A$ = "PULS": B$ = "D": C$ = "Fix the Stack": GoSub AO
 Print #1,
 Return
@@ -9670,21 +9659,21 @@ A$ = "LDB": B$ = StringPointerTemp$: C$ = "B = size of the string": GoSub AO
 A$ = "SUBB": B$ = "3,S": C$ = "B = size of the string - starting location": GoSub AO
 A$ = "INCB": C$ = "B=B+1, so it copies the correct length": GoSub AO
 A$ = "BRA": B$ = ">": C$ = "Skip ahead": GoSub AO
-z$ = "@GetLengthB": GoSub AO
+Z$ = "@GetLengthB": GoSub AO
 A$ = "LDB": B$ = "1,S": C$ = "B = the length the uesr wants to copy": GoSub AO
-z$ = "!"
+Z$ = "!"
 A$ = "LDU": B$ = "#" + StringPointerTemp$: C$ = "U is now pointing at the size of this string": GoSub AO
 A$ = "STB": B$ = ",U+": C$ = "Save the new size of the string, move the pointer": GoSub AO
-z$ = "!"
+Z$ = "!"
 A$ = "LDA": B$ = ",X+": C$ = "Read A": GoSub AO
 A$ = "STA": B$ = ",U+": C$ = "Save A": GoSub AO
 A$ = "DECB": C$ = "Decrement the length to copy counter": GoSub AO
 A$ = "BNE": B$ = "<": C$ = "Keep copying, until we've reached zero": GoSub AO
 A$ = "LEAS": B$ = "4,S": C$ = "Fix the stack": GoSub AO
 A$ = "BRA": B$ = ">": C$ = "Skip ahead, we are done": GoSub AO
-z$ = "@NullString0": GoSub AO
+Z$ = "@NullString0": GoSub AO
 A$ = "PULS": B$ = "D": C$ = "Fix the Stack": GoSub AO
-z$ = "@NullString1": GoSub AO
+Z$ = "@NullString1": GoSub AO
 A$ = "PULS": B$ = "D": C$ = "Fix the Stack": GoSub AO
 A$ = "CLR": B$ = StringPointerTemp$: C$ = "Make the size of the string zero (NULL)": GoSub AO
 Print #1, "!"
@@ -9700,7 +9689,7 @@ A$ = "JSR": B$ = "KEYIN": C$ = "This routine Polls the keyboard to see if a key 
 A$ = "BEQ": B$ = ">": C$ = "Write zero for the size of the string if A is zero": GoSub AO
 A$ = "LDB": B$ = "#1": C$ = "We have a keypress so set the string length to 1": GoSub AO
 A$ = "STB": B$ = ",X+": C$ = "Save 1 for the size and move X forward to point at data": GoSub AO
-z$ = "!"
+Z$ = "!"
 A$ = "STA": B$ = ",X": C$ = "Save A at X": GoSub AO
 ' Since INKEY$ is a string command without brackets we need
 ' to fix  Expression$(ExpressionCount) so when we return everything flows as normal
@@ -9743,10 +9732,10 @@ Select Case Temp
         A$ = "DEC": B$ = "1,S": C$ = "Decrement the counter": GoSub AO
         A$ = "LDB": B$ = "-1,X": C$ = "Get the length of _StrVar_PF00": GoSub AO
         A$ = "ABX": C$ = "Move X to the destination location": GoSub AO
-        z$ = "@LoopStart": GoSub AO
+        Z$ = "@LoopStart": GoSub AO
         A$ = "LDU": B$ = "#" + StringPointerTemp$ + "+1": C$ = "U is now pointing at the start of this string": GoSub AO
         A$ = "LDB": B$ = "-1,U": C$ = "B = the length of the string": GoSub AO
-        z$ = "!"
+        Z$ = "!"
         A$ = "LDA": B$ = ",U+": C$ = "Get a byte": GoSub AO
         A$ = "STA": B$ = ",X+": C$ = "Store a copy": GoSub AO
         A$ = "CMPX": B$ = "#" + StringPointerTemp$ + "+256": C$ = "Make sure we don't make the sring longer then 255 bytes": GoSub AO
@@ -9755,14 +9744,14 @@ Select Case Temp
         A$ = "BNE": B$ = "<": C$ = "Loop until we've copied it all": GoSub AO
         A$ = "DEC": B$ = "1,S": C$ = "Decrement the counter": GoSub AO
         A$ = "BNE": B$ = "@LoopStart": GoSub AO
-        z$ = "@CopiedAll": GoSub AO
+        Z$ = "@CopiedAll": GoSub AO
         A$ = "TFR": B$ = "X,D": C$ = "Copy U to D": GoSub AO
         A$ = "SUBD": B$ = "#" + StringPointerTemp$ + "+1": C$ = "D=D-starting address": GoSub AO
         A$ = "STB": B$ = StringPointerTemp$: C$ = "Save the new string length": GoSub AO
         A$ = "BRA": B$ = "@Done": C$ = "Skip ahead": GoSub AO
-        z$ = "@NullString1": GoSub AO
+        Z$ = "@NullString1": GoSub AO
         A$ = "CLR": B$ = StringPointerTemp$: C$ = "Make the size of the string zero (NULL)": GoSub AO
-        z$ = "@Done"
+        Z$ = "@Done"
         A$ = "PULS": B$ = "D": C$ = "Fix the Stack": GoSub AO
         Print #1,
     Case Else
@@ -9780,10 +9769,10 @@ Select Case Temp
         A$ = "DEC": B$ = "1,S": C$ = "Decrement the counter": GoSub AO
         A$ = "LDB": B$ = "-1,X": C$ = "Get the length of _StrVar_PF00": GoSub AO
         A$ = "ABX": C$ = "Move X to the destination location": GoSub AO
-        z$ = "@LoopStart": GoSub AO
+        Z$ = "@LoopStart": GoSub AO
         A$ = "LDU": B$ = "#" + StringPointerTemp$ + "+1": C$ = "U is now pointing at the start of this string": GoSub AO
         A$ = "LDB": B$ = "-1,U": C$ = "B = the length of the string": GoSub AO
-        z$ = "!"
+        Z$ = "!"
         A$ = "LDA": B$ = ",U+": C$ = "Get a byte": GoSub AO
         A$ = "STA": B$ = ",X+": C$ = "Store a copy": GoSub AO
         A$ = "CMPX": B$ = "#" + StringPointerTemp$ + "+256": C$ = "Make sure we don't make the sring longer then 255 bytes": GoSub AO
@@ -9792,14 +9781,14 @@ Select Case Temp
         A$ = "BNE": B$ = "<": C$ = "Loop until we've copied it all": GoSub AO
         A$ = "DEC": B$ = "1,S": C$ = "Decrement the counter": GoSub AO
         A$ = "BNE": B$ = "@LoopStart": GoSub AO
-        z$ = "@CopiedAll": GoSub AO
+        Z$ = "@CopiedAll": GoSub AO
         A$ = "TFR": B$ = "X,D": C$ = "Copy U to D": GoSub AO
         A$ = "SUBD": B$ = "#" + StringPointerTemp$ + "+1": C$ = "D=D-starting address": GoSub AO
         A$ = "STB": B$ = StringPointerTemp$: C$ = "Save the new string length": GoSub AO
         A$ = "BRA": B$ = "@Done": C$ = "Skip ahead": GoSub AO
-        z$ = "@NullString1": GoSub AO
+        Z$ = "@NullString1": GoSub AO
         A$ = "CLR": B$ = StringPointerTemp$: C$ = "Make the size of the string zero (NULL)": GoSub AO
-        z$ = "@Done"
+        Z$ = "@Done"
         A$ = "PULS": B$ = "D": C$ = "Fix the Stack": GoSub AO
         Print #1,
 End Select
@@ -9824,16 +9813,16 @@ A$ = "EXG": B$ = "D,X": C$ = "D now = 10, X is the number given by the user": Go
 A$ = "JSR": B$ = "DIV16": C$ = "Do 16 bit / 16 bit Division, D = X/D No rounding will occur": GoSub AO
 A$ = "SUBD": B$ = "#1": C$ = "D=D-1, the overhead of the Divide could be around 10 ms, so make up for it": GoSub AO
 A$ = "TFR": B$ = "D,Y": C$ = "Y = user ms Value Divided by 10": GoSub AO
-z$ = "@Loop1": A$ = "LDB": B$ = "#157": C$ = "157 HSyncs = 10 milliseconds": GoSub AO
-z$ = "@Loop2": A$ = "LDA": B$ = "$FF00": C$ = "Reset Hsync flag": GoSub AO
-z$ = "!": A$ = "LDA": B$ = "$FF01": C$ = "See if HSync has occurred yet": GoSub AO
+Z$ = "@Loop1": A$ = "LDB": B$ = "#157": C$ = "157 HSyncs = 10 milliseconds": GoSub AO
+Z$ = "@Loop2": A$ = "LDA": B$ = "$FF00": C$ = "Reset Hsync flag": GoSub AO
+Z$ = "!": A$ = "LDA": B$ = "$FF01": C$ = "See if HSync has occurred yet": GoSub AO
 A$ = "BPL": B$ = "<": C$ = "If not then keep looping, until the Hsync occurs": GoSub AO
 A$ = "DECB": C$ = "Decrement the counter": GoSub AO
 A$ = "BNE": B$ = "@Loop2": C$ = "If not zero then, keep looping": GoSub AO
 A$ = "LEAY": B$ = "-1,Y": C$ = "Y=Y-1": GoSub AO
 A$ = "BNE": B$ = "@Loop1": C$ = "If not zero then, keep looping": GoSub AO
 A$ = "PULS": B$ = "CC": C$ = "Restore the CC": GoSub AO
-z$ = "@Skip": C$ = "Done": GoSub AO
+Z$ = "@Skip": C$ = "Done": GoSub AO
 Print #1,
 Return
 
@@ -9888,7 +9877,7 @@ If v = &HFF Then
             If Array(x) = &HFF And (Array(x + 1) = &H0D Or Array(x + 1) = &H3A) Then
                 ' no value given after the SPRITE OFF command, turn them all off
                 A$ = "LDB": B$ = "#31": C$ = "32 sprites to process": GoSub AO
-                z$ = "!": A$ = "PSHS": B$ = "B": C$ = "Save B": GoSub AO
+                Z$ = "!": A$ = "PSHS": B$ = "B": C$ = "Save B": GoSub AO
                 A$ = "JSR": B$ = "SpriteBOff": C$ = "Jump to code to turn off sprite B": GoSub AO
                 A$ = "PULS": B$ = "B": C$ = "Restore B": GoSub AO
                 A$ = "DECB": C$ = "Decrement the sprite number": GoSub AO
@@ -10014,12 +10003,12 @@ If FirstSpriteLoad = 0 And CoCo3 = 1 Then
     FirstSpriteLoad = 1
     ' Load the CoCo3 Palette from the CoCo3_Palette.asm file
     ' Wait for vsync
-    A$ = "TST": B$ = "$FF02": C$ = "Reset Vsync flag": GoSub AO
-    z$ = "!": A$ = "TST": B$ = "$FF03": C$ = "See if Vsync has occurred yet": GoSub AO
+    A$ = "LDA": B$ = "$FF02": C$ = "Reset Vsync flag": GoSub AO
+    Z$ = "!": A$ = "LDA": B$ = "$FF03": C$ = "See if Vsync has occurred yet": GoSub AO
     A$ = "BPL": B$ = "<": C$ = "If not then keep looping, until the Vsync occurs": GoSub AO
     A$ = "LDU": B$ = "#CoCo3_Palette": C$ = "U points at the start or the users palette info": GoSub AO
     A$ = "LDX": B$ = "#$FFB0": C$ = "Point at the start of the palette memory": GoSub AO
-    z$ = "!": A$ = "LDD": B$ = ",U++": C$ = "Get the palette values, move pointer": GoSub AO
+    Z$ = "!": A$ = "LDD": B$ = ",U++": C$ = "Get the palette values, move pointer": GoSub AO
     A$ = "STD": B$ = ",X++": C$ = "Save the palette values in the palette registers, move pointer": GoSub AO
     A$ = "CMPX": B$ = "#$FFC0": C$ = "See if we've copied them all": GoSub AO
     A$ = "BNE": B$ = "<": C$ = "Keep looping if not": GoSub AO
@@ -10125,8 +10114,6 @@ Select Case NumericCommands$(v)
         GoTo DoSDC_CLOSE
     Case "SDC_INITDIR"
         GoTo DoSDC_INITDIR
-    Case "COCOHARDWARE"
-        GoTo DoCOCOHARDWARE
 
     Case "COCOMP3_RAW"
         GoTo DoCOCOMP3_RAW
