@@ -1,3 +1,4 @@
+divisor
 fixoperationorder
 FF03
 doscreen
@@ -25,7 +26,6 @@ ff00
 fe00
 8900
 scns
-divisor
 codelen
 MSB
 main_input_size
