@@ -1,9 +1,7 @@
-' Sprite Compiler & Background Image Renderer
+' Sprint Compiler
 
-VersionNumber$ = "1.01"
-'       - Modified load location of hte NTSC composite file to only use block $C000 while loading using option -c4
 
-' V1.00
+VersionNumber$ = "1.00"
 '       - Added support for not saving the background and writing the sprite with a solid colour behind it
 
 ' V0.08
@@ -298,21 +296,19 @@ Tab$ = String$(8, " ") ' tab space in output
 FI = 0
 count = _CommandCount
 If count > 0 Then GoTo 100
-99 Print: Print "PNG to CoCo Sprite Compiler & Background Image Renderer v"; VersionNumber$; " by Glen Hewlett"
+99 Print: Print "PNG to CoCo Sprite Compiler v"; VersionNumber$; " by Glen Hewlett"
 Print
-Print "Usage: PNGtoCCSB -gx [-sx] [-a[w]xx] [-bx] [-pxxx] [-scroll] [-cx] [-dx] [-x] [-blkxx] [-makepal] [-usepal] [-v#] InName.png"
+Print "Usage: PNGtoCoCo -gx [-sx] [-a[w]xx] [-bx] [-pxxx] [-scroll] [-cx] [-dx] [-x] [-blkxx] [-makepal] [-usepal] [-v#] InName.png"
 Print "Where:"
 Print "InName.png is a 32 bit RGBA (includes transparency) png file"
-Print "-gx      - Where x is the GMODE # the basic program will use to draw the created sprite/background image"
-Print "-axx     - This PNG image contains xx animation pictures"
-Print "           This will create xx anim sprites from this single image"
-Print "           The image should contain the animation frames all in a row (max 32 images per PNG file)"
-Print "-awxx    - Similar to -axx but used with gmode 18 this PNG image contains xx animation pictures for a walk cycle,"
-Print "           create xx anim sprites from this single image"
-Print "           The image should contain the animation frames all in a row (max 32 frames per PNG file)"
+Print "-gx      - Where x is the GMODE # the basic program will use to draw the created sprite"
+Print "-axx     - This PNG image contains xx animation pictures, create xx anim sprites from this single image"
+Print "           The image should contain the animation frames all in a row (max 32 frames per sprite)"
+Print "-awxx    - This PNG image contains xx animation pictures for a walk cycle, create xx anim sprites from this single image"
+Print "           The image should contain the animation frames all in a row (max 32 frames per sprite)"
 Print "-ox      - Offset pixel for where the left edge of the sprite(s) will be generated from"
 Print
-Print "-bx        This option handles the way the sprite handles the graphics behind the sprite."
+Print "-bx option handles the way the sprite handles the graphics behind the sprite."
 Print "-b0      - No backup or restore of the data behind the sprite will be done, this is the fastest but it makes a destructive sprite"
 Print "-b1      - (default) Add code that will restore the background behind the sprite"
 Print "-b2      - Always write a byte pattern behind the sprite, this is faster than restoring using option -b1"
@@ -325,6 +321,8 @@ Print "-c1        1 = Converts the .PNG file into a LOADMable .BIN file with an 
 Print "-c2        2 = Converts the .PNG file into a .RAW binary data file"
 Print "-c3        3 = Converts the .PNG file into a .ASM assembly file with FCB statements"
 Print
+Print "-v#      - Set verbose level while generating compiled sprite (where # is 0 to 3)"
+Print
 Print "CoCo 2 specific options:"
 Print "-sx      - Where x is either a 0 or a 1, to match the SCREEN 1,x colour format for a CoCo 1 or 2 screen mode (default is 0)"
 Print
@@ -332,11 +330,11 @@ Print "CoCo 3 specific options:"
 Print "-scroll  - Will generate a sprite to be used with a horizontally scrolling background"
 Print "           *** Do not use this option if your background only scrolls vertically or doesn't scroll at all ***"
 Print "-makepal - During the sprite conversion it will also create a palette file called CoCo3_Palette.asm for use with other"
-Print "           images and CoCo 3 programs"
+Print "           images and a CoCo 3 program"
 Print
 Print "CoCo 3 NTSC Composite 256 colour options:"
 Print "-c4      - Convert a PNG file to the special NTSC composite 256 colour format image"
-Print "           The image will be a LOADMable file that will start at value of -blkxx or default of Mem block 0 on the CoCo3"
+Print "           The image will be a LOADMable file that will start at Mem block 0 on the CoCo3"
 Print "-c5      - Convert a PNG file to the special NTSC composite 256 colour format image saved as a .RAW binary data file"
 Print "-c6      - Convert a PNG file to the special NTSC composite 256 colour format image saved as a .ASM assembly file with FCB statements"
 Print "-blkxx   - First block in memory for the screen to be loaded, only needed when -c4 option is used"
@@ -349,9 +347,7 @@ Print "           3 = Ordered Dithering"
 Print "-xx      - NTSC Composite colour values"
 Print "           0 = Use xroars calculated values (default)"
 Print "           1 = Use NTSC monitor scanned Colour values"
-Print
-Print "-v#      - Set verbose level while generating compiled sprite (where # is 0 to 3)"
-Print
+
 System
 100 nt = 0: newp = 0: endp = 0: t = 0: o1 = 0: A = 0: TFM = 0
 Verbose = 0
@@ -499,8 +495,7 @@ Dim AveragePixelValB As Long
 
 ' Display the image on-screen
 _PutImage (0, 0), myImage ' Adjust as needed to ensure it's fully on-screen
-'If ConvertBackground > 3 And Gmode > 159 Then
-If ConvertBackground > 0 Then
+If ConvertBackground > 3 And Gmode > 159 Then
     ' scale the image if we need to
     ScaleWidth = imageWidth / (Val(GModeMaxX$(Gmode)) + 1)
     ScaleHeight = imageHeight / (Val(GModeMaxY$(Gmode)) + 1)
@@ -543,8 +538,7 @@ End If
 _FreeImage myImage
 _Dest _Console
 ' Print messages
-'If ConvertBackground > 3 And Gmode > 159 Then
-If ConvertBackground > 0 Then
+If ConvertBackground > 3 And Gmode > 159 Then
     If imageWidth < Val(GModeMaxX$(Gmode)) + 1 Then
         Print "Input image must be at least "; Val(GModeMaxX$(Gmode)) + 1; " pixels wide": System
     End If
@@ -746,7 +740,6 @@ If CoCo3 = 1 Then
     Close #1
     ' Palette is setup
     If Colours = 2 Then
-        ' Get the best 2 colours that can be used on the CoCo 3 and use them for this sprite
         For y = 0 To imageHeight - 1
             For x = 0 To imageWidth - 1
                 Pixel$ = Right$("00000000" + Hex$(pixelColors(x / 2, y)), 8)
@@ -970,11 +963,11 @@ OldXPos = 0: OldYPos = 0 ' Used to caclulate LEAU and ABX values
 
 Outname$ = FNameNoExt$ + ".asm"
 Open Outname$ For Output As #2
-Print #2, "; Sprite Name            : "; FNameNoExt$
-Print #2, "; Sprite Width in pixels :"; imageWidth - 1
-Print #2, "; Sprite Height in pixels:"; imageHeight
-Print #2, "; # of Colours           :"; Colours
-Print #2, "; # of Animation Frames  :"; AnimFrames
+Print #2, "; Sprite data for "; FNameNoExt$
+Print #2, "; Enter with X pointing at the memory location on screen to draw the sprite"
+Print #2, "; Sprite Width is:"; DrawBytesPerRow; "Bytes to draw before shifting"
+Print #2, "; Height is:"; imageHeight; "Rows"
+Print #2, "; Number of frames of animation:"; AnimFrames
 
 ' Build Jump Table
 Print #2, FNameNoExt$; "_Draw:"
@@ -1359,7 +1352,7 @@ Print #2, "; Option -b0 used which is to not restore the background behind the s
 Print #2, "Restore_" + FNameNoExt$ + "_1:"
 Print #2, "Restore_" + FNameNoExt$ + "_0:"
 Print #2, "; Option -b0 used which is to not backup Sprite data for "; FNameNoExt$
-Print #2, "Backup_" + FNameNoExt$ + ":"
+Print #2, FNameNoExt$ + "_BackupStart:"
 Instr1$ = "RTS": Com$ = "Nothing to do, simply Return": GoSub DoOutput ' Print the output to file #2
 Return
 
@@ -1369,11 +1362,7 @@ Print #2, "; Restore the background behind the sprite VSYNC 1"
 Print #2, "Restore_" + FNameNoExt$ + "_1:"
 'n = -ScreenSize + (ScreenWidth / (8 / ShiftBits)) * (imageHeight - 1): GoSub NumAsString 'Convert number in N to a string without spaces as N$ - a value of zero is ignored comes back as N$=""
 'Instr1$ = "LEAS": Instr2$ = ",X": Com$ = "Point at the bottom left edge of the frame 0 sprite location": GoSub DoOutput ' Print the output to file #2
-If Gmode < 99 Then
-    n = Val("&H" + GModeScreenSize$(Gmode)): GoSub NumAsString 'Convert number in N to a string without spaces as N$ - a value of zero is ignored comes back as N$=""
-Else
-    n = &H6000: GoSub NumAsString 'Convert number in N to a string without spaces as N$ - a value of zero is ignored comes back as N$=""
-End If
+n = &H6000: GoSub NumAsString 'Convert number in N to a string without spaces as N$ - a value of zero is ignored comes back as N$=""
 Instr1$ = "LEAY": Instr2$ = N$ + ",X": Com$ = "Point at the top left edge of the screen 1 sprite location": GoSub DoOutput ' Print the output to file #2
 n = ScreenWidth / (8 / ShiftBits)
 If Artifact = 1 Then n = 32
@@ -1543,10 +1532,10 @@ If ScrollMode = 0 Then
     MoveYAmount$ = N$
     Instr1$ = "LDB": Instr2$ = "#" + N$: Com$ = "Amount to move down the screen to the next row": GoSub DoOutput ' Print the output to file #2
 End If
+
 For Row = 0 To imageHeight - 1
     Print #2, "; Row"; Row
     row$ = ""
-
     TransparentRow = 1 ' Default = Transparent row
     For x = 0 To SpWidth - 1
         Temp$ = SpriteOriginal$(x, Row)
@@ -1554,10 +1543,10 @@ For Row = 0 To imageHeight - 1
         row$ = row$ + Temp$
     Next x
     ' check a row of transparent bytes
-    If TransparentRow = 1 And AnimFrames = 1 Then
+
+    If TransparentRow = 1 Then
         ' This row is transparent and will be ignored
         ' Check if the rest will also be transparent, if so we are done
-        ' If we only have a signle frame, we can skip rows that are completely transparent
         TransparentRow = 1 ' Default = Transparent row
         For CheckRow = Row To imageHeight - 1
             For x = 0 To SpWidth - 1
@@ -1570,53 +1559,87 @@ For Row = 0 To imageHeight - 1
             Print #2, "; The rest of the rows are transparent and will be skipped"
             Row = imageHeight - 1 ' this will end the loop
         End If
-
     Else
         ' Row is not transparent so handle the bytes
-        p = 2
-        While DrawBytesPerRow + 1 - p >= 0
-            n = p - 2: GoSub NumAsString 'Convert number in N to a string without spaces as N$ - a value of zero is ignored comes back as N$=""
-            Instr1$ = "LDU": Instr2$ = N$ + ",X": Com$ = "read the sprite data on screen 0": GoSub DoOutput ' Print the output to file #2
-            Instr1$ = "STU": Instr2$ = N$ + ",Y": Com$ = "write the sprite data on screen 1": GoSub DoOutput ' Print the output to file #2
-            p = p + 2
-        Wend
-        p = p - 1
-        While DrawBytesPerRow + 1 - p >= 0
-            n = p - 1: GoSub NumAsString 'Convert number in N to a string without spaces as N$ - a value of zero is ignored comes back as N$=""
-            Instr1$ = "LDA": Instr2$ = N$ + ",X": Com$ = "read the sprite data on screen 0": GoSub DoOutput ' Print the output to file #2
-            Instr1$ = "STA": Instr2$ = N$ + ",Y": Com$ = "write the sprite data on screen 1": GoSub DoOutput ' Print the output to file #2
-            p = p + 1
-        Wend
-
-        If AnimFrames = 1 Then
-            ' If we only have a signle frame, we can skip rows that are completely transparent
-            If Row + 1 <= imageHeight - 1 Then
-                TransparentRow = 1 ' Default = Transparent row
-                For x = 0 To SpWidth - 1
-                    Temp$ = SpriteOriginal$(x, Row + 1)
-                    If Temp$ <> "T" Then TransparentRow = 0
-                    row$ = row$ + Temp$
-                Next x
-                ' check a row of transparent bytes
-                If TransparentRow = 1 Then
-                    ' This row is transparent and will be ignored
-                    ' Check if the rest will also be transparent, if so we are done
-                    TransparentRow = 1 ' Default = Transparent row
-                    For CheckRow = Row + 1 To imageHeight - 1
-                        For x = 0 To SpWidth - 1
-                            Temp$ = SpriteOriginal$(x, CheckRow)
-                            If Temp$ <> "T" Then TransparentRow = 0
-                        Next x
-                    Next CheckRow
-                    If TransparentRow = 1 Then
-                        ' The rest is also transparent, we are done
-                        Print #2, "; The rest of the rows are transparent and will be skipped"
-                        Row = imageHeight - 1 ' this will end the loop
+        GoSub FindWordCounts
+        If LargestWord > 0 Then
+            ' Fill in the largest words first
+            '            If LastU$ <> LargeWord$ Then
+            '                Instr1$ = "LDU": Instr2$ = "#%" + LargeWord$: Com$ = "Get the sprite data into U": GoSub DoOutput ' Print the output to file #2
+            '            End If
+            For p = 0 To DrawBytesPerRow * 8 - 1 Step 8
+                If Mid$(row$, p + 1, 16) = LargeWord$ Then
+                    n = p / 8: GoSub NumAsString 'Convert number in N to a string without spaces as N$ - a value of zero is ignored comes back as N$=""
+                    Instr1$ = "LDU": Instr2$ = N$ + ",X": Com$ = "read the sprite data on screen 0": GoSub DoOutput ' Print the output to file #2
+                    Instr1$ = "STU": Instr2$ = N$ + ",Y": Com$ = "write the sprite data on screen 1": GoSub DoOutput ' Print the output to file #2
+                    If p = 0 Then
+                        Temp$ = String$(16, "x") + Mid$(row$, 17)
+                    Else
+                        Temp$ = Mid$(row$, 1, p) + String$(16, "x") + Mid$(row$, p + 17)
                     End If
+                    row$ = Temp$
+                End If
+            Next p
+        End If
+        GoSub FindByteCounts
+        If LargestByte > 0 Then
+            ' Fill in the largest bytes next
+            '            If LastA$ <> LargeByte$ Then
+            '                Instr1$ = "LDA": Instr2$ = "#%" + LargeByte$: Com$ = "Get the sprite data into A": GoSub DoOutput ' Print the output to file #2
+            '            End If
+            For p = 0 To DrawBytesPerRow * 8 - 1 Step 8
+                If Mid$(row$, p + 1, 8) = LargeByte$ Then
+                    n = p / 8: GoSub NumAsString 'Convert number in N to a string without spaces as N$ - a value of zero is ignored comes back as N$=""
+                    Instr1$ = "LDA": Instr2$ = N$ + ",X": Com$ = "read the sprite data on screen 0": GoSub DoOutput ' Print the output to file #2
+                    Instr1$ = "STA": Instr2$ = N$ + ",Y": Com$ = "write the sprite data on screen 1": GoSub DoOutput ' Print the output to file #2
+                    If p = 0 Then
+                        Temp$ = String$(8, "x") + Mid$(row$, 9)
+                    Else
+                        Temp$ = Mid$(row$, 1, p) + String$(8, "x") + Mid$(row$, p + 9)
+                    End If
+                    row$ = Temp$
+                End If
+            Next p
+        End If
+        ' Fill in what's left
+        For j = 1 To Len(row$) - 7 Step 8
+
+            '          Print "Mid$(row$, j, 8)="; Mid$(row$, j, 8), j
+
+            If InStr(Mid$(row$, j, 8), "x") = 0 Then
+                ' found a byte to process
+                If Mid$(row$, j, 8) <> "TTTTTTTT" Then
+                    ' if the byte is not all transparent
+                    n = (j - 1) / 8: GoSub NumAsString 'Convert number in N to a string without spaces as N$ - a value of zero is ignored comes back as N$=""
+                    If InStr(Mid$(row$, j, 8), "T") > 0 Then
+                        ' This byte has some transparency to deal with
+                        Temp0$ = ""
+                        Mask0$ = ""
+                        For x = 1 To 8
+                            If Mid$(Mid$(row$, j, 8), x, 1) = "T" Then
+                                Temp0$ = Temp0$ + "0"
+                                Mask0$ = Mask0$ + "1"
+                            Else
+                                Temp0$ = Temp0$ + Mid$(Mid$(row$, j, 8), x, 1)
+                                Mask0$ = Mask0$ + "0"
+                            End If
+                        Next x
+                        '                        Instr1$ = "LDA": Instr2$ = "#%" + Mask0$: Com$ = "Get the mask in A": GoSub DoOutput ' Print the output to file #2
+                        '                        Instr1$ = "ANDA": Instr2$ = N$ + ",X": Com$ = "Get the background into transparent bits into A": GoSub DoOutput ' Print the output to file #2
+                        '                        Instr1$ = "ORA": Instr2$ = "#%" + Temp0$: Com$ = "Get the non transparent bits into A": GoSub DoOutput ' Print the output to file #2
+                        Instr1$ = "LDA": Instr2$ = N$ + ",X": Com$ = "read the sprite data on screen 0": GoSub DoOutput ' Print the output to file #2
+                        LastA$ = ""
+                    Else
+                        'Just a normal byte
+                        '                        If LastA$ <> Mid$(row$, j, 8) Then
+                        '                            Instr1$ = "LDA": Instr2$ = "#%" + Mid$(row$, j, 8): Com$ = "Get the sprite data into A": GoSub DoOutput ' Print the output to file #2
+                        '                        End If
+                        Instr1$ = "LDA": Instr2$ = N$ + ",X": Com$ = "read the sprite data on screen 0": GoSub DoOutput ' Print the output to file #2
+                    End If
+                    Instr1$ = "STA": Instr2$ = N$ + ",Y": Com$ = "write the sprite data on screen 1": GoSub DoOutput ' Print the output to file #2
                 End If
             End If
-        End If
-
+        Next j
     End If
     If Row <> imageHeight - 1 Then
         If ScrollMode = 0 Then
@@ -1960,7 +1983,6 @@ GoSub NumAsString 'Convert number in N to a string without spaces as N$ - a valu
 Instr1$ = "LEAU": Instr2$ = N$ + ",X": Com$ = "Point at the bottom, right edge of the sprite backup location": GoSub DoOutput ' Print the output to file #2
 
 n = Pattern * &H100 + Pattern: GoSub NumAsString 'Convert number in N to a string without spaces as N$ - a value of zero is ignored comes back as N$=""
-If N$ = "" Then N$ = "$0000"
 Instr1$ = "LDD": Instr2$ = "#" + N$: Com$ = "D = byte Pattern user wants for the background": GoSub DoOutput ' Print the output to file #2
 Instr1$ = "LDX": Instr2$ = "#" + N$: Com$ = "X = byte Pattern user wants for the background": GoSub DoOutput ' Print the output to file #2
 Instr1$ = "TFR": Instr2$ = "X,Y": Com$ = "Y = byte Pattern user wants for the background": GoSub DoOutput ' Print the output to file #2
@@ -2033,8 +2055,9 @@ For Row = imageHeight - 1 To 0 Step -1
 Next Row
 Instr1$ = "PULS": Instr2$ = "DP,PC": Com$ = "Restore DP & Return": GoSub DoOutput ' Print the output to file #2
 Print #2,
+
 Print #2, "; Option -b2 used which is to not backup Sprite data for "; FNameNoExt$
-Print #2, "Backup_" + FNameNoExt$ + ":"
+Print #2, FNameNoExt$ + "_BackupStart:"
 Instr1$ = "RTS": Com$ = "Nothing to do, simply Return": GoSub DoOutput ' Print the output to file #2
 Return
 
@@ -2117,9 +2140,7 @@ If Colours = 16 Then
     If imageWidth / 2 <> Int(imageWidth / 2) Then Padding = (imageWidth = (Int(imageWidth / 2) + 1) * 2) - imageWidth
 End If
 Print "imagewidth="; imageWidth
-'Print "Padding="; Padding
-Print "imageheight="; imageHeight
-
+Print "Padding="; Padding
 
 ' Last block is a 255 then two zero's then the execute address
 ' Next two bytes is the block length, then the address in RAM that the data will load at
@@ -2268,59 +2289,49 @@ p = 0
 
 If ConvertBackground = 4 Then
     ' User wants a LOADMable CoCo3 file
-
-    Dim TempArray(41000) As _Unsigned _Byte
-
-
-
-
-    ' Fill array with data
-    c = 0
-    For y = 0 To imageHeight - 1
-        For x = 0 To imageWidth - 1
-            TempArray(c) = DitherOut(x, y): c = c + 1
-        Next x
-    Next y
-
-
-
     BlockNumber = BlkStart 'BlockNumber= 8k block in CoCo3's memory
-
-    c = 0
-    BlocksNeeded = Int((imageHeight * imageWidth) / &H2000) + 1
-    For i = 1 To BlocksNeeded
-        StartLocation = &HFFA6
-        Blocksize = 1
-        DiskOut(p) = 0: p = p + 1 ' Preamble value 0 = data, 255 = Last block
-        DiskOut(p) = Int(Blocksize / 256): p = p + 1
-        DiskOut(p) = Blocksize - Int(Blocksize / 256) * 256: p = p + 1 'Load address LSB
-        DiskOut(p) = Int(StartLocation / 256): p = p + 1
-        DiskOut(p) = StartLocation - Int(StartLocation / 256) * 256: p = p + 1 'Load address LSB
-        DiskOut(p) = BlockNumber: p = p + 1: BlockNumber = BlockNumber + 1
-        StartLocation = &HC000
-        Blocksize = &H2000
-        DiskOut(p) = 0: p = p + 1 ' Preamble value 0 = data, 255 = Last block
-        DiskOut(p) = Int(Blocksize / 256): p = p + 1
-        DiskOut(p) = Blocksize - Int(Blocksize / 256) * 256: p = p + 1 'Load address LSB
-        DiskOut(p) = Int(StartLocation / 256): p = p + 1
-        DiskOut(p) = StartLocation - Int(StartLocation / 256) * 256: p = p + 1 'Load address LSB
-        For i2 = 1 To &H2000
-            DiskOut(p) = TempArray(c): p = p + 1: c = c + 1
-        Next i2
-    Next i
-End If
-
-If ConvertBackground = 4 Then
-    ' User wants a LOADMable CoCo3 file
-    ' Put 8k blocks back to normal
-    BlockNumber = &H3E 'BlockNumber= 8k block in CoCo3's memory
-    StartLocation = &HFFA6
-    Blocksize = 1
+    StartLocation = &HFFA2
+    Blocksize = 5
     DiskOut(p) = 0: p = p + 1 ' Preamble value 0 = data, 255 = Last block
     DiskOut(p) = Int(Blocksize / 256): p = p + 1
     DiskOut(p) = Blocksize - Int(Blocksize / 256) * 256: p = p + 1 'Load address LSB
     DiskOut(p) = Int(StartLocation / 256): p = p + 1
     DiskOut(p) = StartLocation - Int(StartLocation / 256) * 256: p = p + 1 'Load address LSB
+    DiskOut(p) = BlockNumber: p = p + 1: BlockNumber = BlockNumber + 1
+    DiskOut(p) = BlockNumber: p = p + 1: BlockNumber = BlockNumber + 1
+    DiskOut(p) = BlockNumber: p = p + 1: BlockNumber = BlockNumber + 1
+    DiskOut(p) = BlockNumber: p = p + 1: BlockNumber = BlockNumber + 1
+    DiskOut(p) = BlockNumber: p = p + 1: BlockNumber = BlockNumber + 1
+    StartLocation = &H4000
+    Blocksize = Val("&H" + GModeScreenSize$(Gmode))
+    DiskOut(p) = 0: p = p + 1 ' Preamble value 0 = data, 255 = Last block
+    DiskOut(p) = Int(Blocksize / 256): p = p + 1
+    DiskOut(p) = Blocksize - Int(Blocksize / 256) * 256: p = p + 1 'Load address LSB
+    DiskOut(p) = Int(StartLocation / 256): p = p + 1
+    DiskOut(p) = StartLocation - Int(StartLocation / 256) * 256: p = p + 1 'Load address LSB
+End If
+c = 0
+For y = 0 To imageHeight - 1
+    For x = 0 To imageWidth - 1
+        DiskOut(p) = DitherOut(x, y): p = p + 1
+    Next x
+Next y
+
+If ConvertBackground = 4 Then
+    ' User wants a LOADMable CoCo3 file
+    ' Put 8k blocks back to normal
+    BlockNumber = &H3A 'BlockNumber= 8k block in CoCo3's memory
+    StartLocation = &HFFA2
+    Blocksize = 5
+    DiskOut(p) = 0: p = p + 1 ' Preamble value 0 = data, 255 = Last block
+    DiskOut(p) = Int(Blocksize / 256): p = p + 1
+    DiskOut(p) = Blocksize - Int(Blocksize / 256) * 256: p = p + 1 'Load address LSB
+    DiskOut(p) = Int(StartLocation / 256): p = p + 1
+    DiskOut(p) = StartLocation - Int(StartLocation / 256) * 256: p = p + 1 'Load address LSB
+    DiskOut(p) = BlockNumber: p = p + 1: BlockNumber = BlockNumber + 1
+    DiskOut(p) = BlockNumber: p = p + 1: BlockNumber = BlockNumber + 1
+    DiskOut(p) = BlockNumber: p = p + 1: BlockNumber = BlockNumber + 1
+    DiskOut(p) = BlockNumber: p = p + 1: BlockNumber = BlockNumber + 1
     DiskOut(p) = BlockNumber: p = p + 1: BlockNumber = BlockNumber + 1
 
     ' Postamble
