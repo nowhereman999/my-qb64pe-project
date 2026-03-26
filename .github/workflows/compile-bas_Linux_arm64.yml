@@ -38,8 +38,10 @@ jobs:
             libglew-dev \
             freeglut3-dev \
             libgl1-mesa-dev \
+            libglu1-mesa-dev \
             libpng-dev \
             zlib1g-dev \
+            libcurl4-openssl-dev \
             zip
 
       - name: Verify QB64-PE ARM64 setup
@@ -70,7 +72,7 @@ jobs:
 
           export CXX=clang++
           export CXXFLAGS="-O0 -fno-rtti -std=gnu++17"
-          export LDFLAGS="-lGLEW -lGL -lglut -lm -lpthread"
+          export LDFLAGS="-lGLEW -lGL -lGLU -lglut -lm -lpthread -lcurl"
 
           echo "CXX=$CXX"
           echo "CXXFLAGS=$CXXFLAGS"
