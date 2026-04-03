@@ -6,8 +6,8 @@ If (LeftType = 5 Or LeftType = 6) And (RightType = 5 Or RightType = 6) Then GoTo
 If LeftType < 7 And RightType < 7 Then GoTo AddMaxType2 ' One is 1 byte the other is 2 byte
 If (LeftType = 7 Or LeftType = 8) And (RightType = 7 Or RightType = 8) Then GoTo AddSameType4 ' Both are a byte size of 4
 If (LeftType = 9 Or LeftType = 10) And (RightType = 9 Or RightType = 10) Then GoTo AddSameType8 ' Both are a byte size of 8
-If LeftType = 11 And RightType = 11 Then GoTo AddSameSingle ' Both are Single
-If LeftType = 12 And RightType = 12 Then GoTo AddSameDouble ' Both are Double
+If LeftType = 11 And RightType = 11 Then GoTo AddSameFFP ' Both are FP 3 bytes
+If LeftType = 12 And RightType = 12 Then GoTo AddSameFP8 ' Both are FP 8 bytes
 
 ' Otherwise Types are not the same
 Z$ = "; Makeboth the same type": GoSub AO
@@ -17,10 +17,10 @@ Select Case Largesttype
         GoTo AddSameType4
     Case 9, 10 ' Same 8 byte values
         GoTo AddSameType8
-    Case 11 ' Same Single values
-        GoTo AddSameSingle
+    Case 11 ' Same FFP values
+        GoTo AddSameFFP
     Case 12 'Same Double values
-        GoTo AddSameDouble
+        GoTo AddSameFP8
 End Select
 
 ' Both are 1 byte
@@ -40,32 +40,31 @@ Return
 AddMaxType2:
 If LeftType < 5 Then
     ' Left is 1 byte and right is 2 bytes
-    ' Stack on entry:
-    '   ,S   = RIGHT 16-bit
-    '   2,S  = LEFT  8-bit
+        A$ = "PULS": B$ = "B": C$ = "Get the left 8 bit value": GoSub AO
     If LeftType = 1 Or LeftType = 3 Then
-        ' Signed left byte
-        A$ = "LDB": B$ = "2,S": C$ = "Get the left 8 bit value": GoSub AO
-        A$ = "SEX": C$ = "Sign extend B into D": GoSub AO
+        'Signed
+        A$ = "SEX": C$ = "Sign Extend B into D": GoSub AO
     Else
-        ' Unsigned left byte
-        A$ = "LDB": B$ = "2,S": C$ = "Get the left 8 bit value": GoSub AO
-        A$ = "CLRA": C$ = "Zero extend B into D": GoSub AO
+    ' Unsigned
+        A$ = "CLRA": C$ = "MSB = 0": GoSub AO
     End If
-    A$ = "ADDD": B$ = ",S+": C$ = "Add right 16 bit value, fix the stack": GoSub AO
-    A$ = "STD": B$ = ",S": C$ = "Save the new 16 bit result": GoSub AO
+    A$ = "ADDD": B$ = ",S++": C$ = "Add left 16 bit value, fix the stack the stack": GoSub AO
+    A$ = "PSHS": B$ = "D": C$ = "Save the new 16 bit value": GoSub AO
 Else
-    ' Right @ ,S Left @ 1,S
     ' Left is 2 bytes and right is 1 byte
     If RightType = 1 Or RightType = 3 Then
-        A$ = "LDB": B$ = ",S+": C$ = "Pop the right 8 bit value": GoSub AO
-        A$ = "SEX": C$ = "Sign extend B into D": GoSub AO
+    'Signed
+        A$ = "LDB": B$ = "2,S": C$ = "Get the right 8 bit value": GoSub AO
+        A$ = "SEX": C$ = "Sign Extend B into D": GoSub AO
+        A$ = "ADDD": B$ = ",S+": C$ = "Add left 16 bit value, move the stack": GoSub AO
+        A$ = "STD": B$ = ",S": C$ = "Save the new 16 bit value": GoSub AO
     Else
-        A$ = "LDB": B$ = ",S+": C$ = "Pop the right 8 bit value": GoSub AO
-        A$ = "CLRA": C$ = "Zero extend B into D": GoSub AO
-    End If
-    A$ = "ADDD": B$ = ",S": C$ = "Add the left 16 bit value": GoSub AO
-    A$ = "STD": B$ = ",S": C$ = "Save the new 16 bit value": GoSub AO
+    ' Unsigned
+        A$ = "LDB": B$ = "2,S": C$ = "Get the right 8 bit value": GoSub AO
+        A$ = "CLRA": C$ = "Clear MSB": GoSub AO
+        A$ = "ADDD": B$ = ",S+": C$ = "Add left 16 bit value, move the stack": GoSub AO
+        A$ = "STD": B$ = ",S": C$ = "Save the new 16 bit value": GoSub AO
+    End if
 End If
 Return
 
@@ -86,20 +85,13 @@ AddSameType8:
 A$ = "JSR": B$ = "Add_8ByteTo8Byte": C$ = "Do 8 byte Add on the stack and adjust the stack": GoSub AO
 Return
 
-' Both are Single format
-AddSameSingle:
-Select Case FloatType
-    Case 0:
-        ' Handle 3 byte FFP
-        A$ = "JSR": B$ = "FFP_ADD": C$ = "Adds 3 byte Float @ ,S with 3 byte Float @ 3,S does S=S+3 with result @ ,S": GoSub AO
-        Case 1:
-        ' Handle 5 byte FP5
-        A$ = "JSR": B$ = "FP5_ADD": C$ = "Adds 5 byte Float @ ,S with 5 byte Float @ 5,S does S=S+5 with result @ ,S": GoSub AO
-End Select
+' Both are FP 3 bytes in FFP format
+AddSameFFP:
+A$ = "JSR": B$ = "FFP_ADD": C$ = "Adds 3 byte Float @ ,S with 3 byte Float @ 3,S does S=S+3 with result @ ,S": GoSub AO
 Return
 
-' Both are Double format
-AddSameDouble:
+' Both are FP 8 bytes
+AddSameFP8:
 A$ = "JSR": B$ = "DoFPDouble_Add_ForCompiler": C$ = "Do FP 8 byte (IEEE_754) Add on the stack and adjust the stack": GoSub AO
 Return
 
@@ -111,8 +103,8 @@ If (LeftType = 5 Or LeftType = 6) And (RightType = 5 Or RightType = 6) Then GoTo
 If LeftType < 7 And RightType < 7 Then GoTo SubMaxType2 ' One is 1 byte the other is 2 byte
 If (LeftType = 7 Or LeftType = 8) And (RightType = 7 Or RightType = 8) Then GoTo SubSameType4 ' Both are a byte size of 4
 If (LeftType = 9 Or LeftType = 10) And (RightType = 9 Or RightType = 10) Then GoTo SubSameType8 ' Both are a byte size of 8
-If LeftType = 11 And RightType = 11 Then GoTo SubSameSingle ' Both are Single
-If LeftType = 12 And RightType = 12 Then GoTo SubSameDouble ' Both are Double
+If LeftType = 11 And RightType = 11 Then GoTo SubSameFFP ' Both are FP 3 bytes
+If LeftType = 12 And RightType = 12 Then GoTo SubSameFP8 ' Both are FP 8 bytes
 
 ' Otherwise Types are not the same
 Z$ = "; Makeboth the same type": GoSub AO
@@ -122,10 +114,10 @@ Select Case Largesttype
         GoTo SubSameType4
     Case 9, 10 ' Same 8 byte values
         GoTo SubSameType8
-    Case 11 ' Same Single values
-        GoTo SubSameSingle
+    Case 11 ' Same FFP values
+        GoTo SubSameFFP
     Case 12 'Same Double values
-        GoTo SubSameDouble
+        GoTo SubSameFP8
 End Select
 
 ' Both are 1 byte
@@ -146,43 +138,32 @@ Return
 SubMaxType2:
 If LeftType < 5 Then
     ' Left is 1 byte and right is 2 bytes
-    ' Stack on entry:
-    '   ,S   = RIGHT 16-bit
-    '   2,S  = LEFT  8-bit
-    ' We must widen the LOWER left operand, then subtract:
-    '   LEFT - RIGHT
-    '
-    ' Left is 1 byte and right is 2 bytes
-    ' Doing D = Left @ 2,S - Right @,S
     If LeftType = 1 Or LeftType = 3 Then
-        ' Signed left byte
-        A$ = "LDB": B$ = "2,S": C$ = "Get the left 8 bit value": GoSub AO
-        A$ = "SEX": C$ = "Sign extend B into D": GoSub AO
-    Else
-        ' Unsigned left byte
-        A$ = "LDB": B$ = "2,S": C$ = "Get the left 8 bit value": GoSub AO
-        A$ = "CLRA": C$ = "Zero extend B into D": GoSub AO
-    End If
-    ' D has the LEFT value
-    A$ = "SUBD": B$ = ",S+": C$ = "Subtract right 16 bit value, move the stack": GoSub AO
-    A$ = "STD": B$ = ",S": C$ = "Save the 16 bit result on the stack": GoSub AO
-Else
-    '   LEFT - RIGHT
-    ' Left is 2 bytes @ 2,S and right is 1 byte at ,S
-    If RightType = 1 Or RightType = 3 Then
-        ' Signed right byte
-        A$ = "LDB": B$ = ",S": C$ = "Get the right 8 bit value": GoSub AO
+        'Signed
+        A$ = "LDB": B$ = ",S": C$ = "Get the left 8 bit value": GoSub AO
         A$ = "SEX": C$ = "Sign Extend B into D": GoSub AO
+        A$ = "PSHS": B$ = "A": C$ = "Save the MSB on the stack": GoSub AO
     Else
-        ' Unsigned right byte
-        A$ = "LDB": B$ = ",S": C$ = "Get the right 8 bit value": GoSub AO
-        A$ = "CLRA": C$ = "Clear MSB": GoSub AO
+    ' Unsigned
+        A$ = "CLR": B$ = ",-S": C$ = "MSB = 0": GoSub AO
     End If
-    A$ = "STD": B$ = ",-S": C$ = "Store 16 bit version of the right value on the stack": GoSub AO
-    A$ = "LDD": B$ = "2,S": C$ = "Get the left 16 bit value": GoSub AO
-    A$ = "SUBD": B$ = ",S++": C$ = "D = left 16 bit value - right 16 bit value, fix the stack": GoSub AO
-    A$ = "STD": B$ = ",S": C$ = "Save the new 16 bit value": GoSub AO
+    A$ = "LDD": B$ = "2,S": C$ = "Get the right 16 bit value": GoSub AO
+    A$ = "SUBD": B$ = ",S++": C$ = "Subtract left 16 bit value, move the stack": GoSub AO
+Else
+    ' Left is 2 bytes and right is 1 byte
+    If RightType = 1 Or RightType = 3 Then
+    'Signed
+        A$ = "LDB": B$ = "2,S": C$ = "Get the right 8 bit value": GoSub AO
+        A$ = "SEX": C$ = "Sign Extend B into D": GoSub AO
+        A$ = "SUBD": B$ = ",S+": C$ = "Subtract left 16 bit value, move the stack": GoSub AO
+    Else
+    ' Unsigned
+        A$ = "LDB": B$ = "2,S": C$ = "Get the right 8 bit value": GoSub AO
+        A$ = "CLRA": C$ = "Clear MSB": GoSub AO
+        A$ = "SUBD": B$ = ",S+": C$ = "Subtract left 16 bit value, move the stack": GoSub AO
+    End if
 End If
+A$ = "STD": B$ = ",S": C$ = "Save the new 16 bit value": GoSub AO
 Return
 
 ' Both are 2 bytes
@@ -202,20 +183,13 @@ SubSameType8:
 A$ = "JSR": B$ = "Subtract_8ByteFrom8Byte": C$ = "Do 8 byte Subtract on the stack and adjust the stack": GoSub AO
 Return
 
-' Both are Single format
-SubSameSingle:
-Select Case FloatType
-    Case 0:
-        ' Handle 3 byte FFP
-        A$ = "JSR": B$ = "FFP_SUB": C$ = "Subtract 3 byte float @ 3,S from ,S does S=S+3 with result @ ,S": GoSub AO
-        Case 1:
-        ' Handle 5 byte FP5
-        A$ = "JSR": B$ = "FP5_SUB": C$ = "Subtract 5 byte Float @ ,S with 5 byte Float @ 5,S does S=S+5 with result @ ,S": GoSub AO
-End Select
+' Both are FP 3 bytes in FFP format
+SubSameFFP:
+A$ = "JSR": B$ = "FFP_SUB": C$ = "Subtract 3 byte float @ 3,S from ,S does S=S+3 with result @ ,S": GoSub AO
 Return
 
-' Both are Double
-SubSameDouble:
+' Both are FP 8 bytes
+SubSameFP8:
 A$ = "JSR": B$ = "DoFPDouble_Subtract_ForCompiler": C$ = "Do FP 10 byte (IEEE_754) Subtract on the stack and adjust the stack": GoSub AO
 Return
 
@@ -228,8 +202,8 @@ If Largesttype < 5 Then GoTo Mul1ByteInt ' Both are a byte size of 1
 If (LeftType = 5 Or LeftType = 6) And (RightType = 5 Or RightType = 6) Then GoTo Mul2ByteInt ' Both are a byte size of 2
 If (LeftType = 7 Or LeftType = 8) And (RightType = 7 Or RightType = 8) Then GoTo Mul4ByteInt ' Both are a byte size of 4
 If (LeftType = 9 Or LeftType = 10) And (RightType = 9 Or RightType = 10) Then GoTo Mul8ByteInt ' Both are a byte size of 8
-If LeftType = 11 And RightType = 11 Then GoTo MulSingle ' Both are Single
-If LeftType = 12 And RightType = 12 Then GoTo Mul10ByteFloat ' Both are Double
+If LeftType = 11 And RightType = 11 Then GoTo MulFFP ' Both are FP 3 bytes
+If LeftType = 12 And RightType = 12 Then GoTo Mul10ByteFloat ' Both are FP 8 bytes
 
 ' Otherwise Types are not the same
 Z$ = "; Makeboth the same type": GoSub AO
@@ -242,8 +216,8 @@ Select Case Largesttype
         GoTo Mul4ByteInt
     Case 9, 10 ' Same 8 byte values
         GoTo Mul8ByteInt
-    Case 11 ' Same Single values
-        GoTo MulSingle
+    Case 11 ' Same FFP values
+        GoTo MulFFP
     Case 12 'Same Double values
         GoTo Mul10ByteFloat
 End Select
@@ -252,7 +226,7 @@ End Select
 Mul1ByteInt:
 A$ = "LDD": B$ = ",S++": C$ = "A = value1 an 8 bit unsigned, B = value2 an 8 bit unsigned, fix the stack": GoSub AO
 A$ = "MUL": C$ = "D = A * B": GoSub AO
-A$ = "PSHS": B$ = "D": C$ = "Save the new 16 bit value": GoSub AO
+A$ = "PSHS": B$ = "D": C$ = "Save the new 8 bit value": GoSub AO
 Largesttype=Largesttype+2
 Return
 ' Both are 2 bytes (16 bits)
@@ -305,35 +279,13 @@ Else
     End If
 End If
 Return
-' Both are Single format
-MulSingle:
-Select Case FloatType
-    Case 0:
-        ' Handle 3 byte FFP
-        A$ = "JSR": B$ = "FFP_MUL": C$ = "Multiply 3,S * ,S then S=S+3 result is @ ,S": GoSub AO
-    Case 1:
-        ' Handle 5 byte FP5
-        A$ = "JSR": B$ = "FP5_MUL": C$ = "Multiply 5,S * ,S then S=S+5 result is @ ,S": GoSub AO
-End Select
+' Both are FP 3 bytes in FFP format
+MulFFP:
+A$ = "JSR": B$ = "FFP_MUL": C$ = "Multiply 3,S * ,S then S=S+3 result is @ ,S": GoSub AO
 Return
 ' Both are FP 10 bytes
 Mul10ByteFloat:
 A$ = "JSR": B$ = "DB_MUL": C$ = "Do FP 8 byte (IEEE_754) Multiply on the stack and adjust the stack": GoSub AO
-Return
-
-' Enter with LeftType set, RightType set & LargestType set
-NumFunctionDivideSmart:
-Z$ = "; Doing / smart divide, Largest is:" + Str$(Largesttype): GoSub AO
-Z$ = "; LeftType=" + Str$(LeftType): GoSub AO
-Z$ = "; RightType=" + Str$(RightType): GoSub AO
-
-If LeftType < NT_Single And RightType < NT_Single Then
-    Z$ = "; Both operands are integer, use integer division fast path": GoSub AO
-    GoSub NumFunctionIntDiv
-Else
-    Z$ = "; Floating operand detected, use real floating divide": GoSub AO
-    GoSub NumFunctionDivide
-End If
 Return
 
 ' Enter with LeftType set, RightType set & LargestType set
@@ -405,19 +357,14 @@ Select Case Largesttype
                 A$ = "JSR": B$ = "Div_UnSigned_Rounding_64": C$ = "64 bit division: 8,S / ,S ; Stack moved forward and ,S = result, 64 bit remainder @ Remainder": GoSub AO
             End If
         End If
-    Case 11 ' Both are Single format
-Select Case FloatType
-    Case 0:
-        ' Handle 3 byte FFP
+    Case 11 ' Both are FP 3 bytes in FFP format
         A$ = "JSR": B$ = "FFP_DIV": C$ = "Do FFP division, Divide 3,S / ,S then S=S+3 result is @ ,S": GoSub AO
-    Case 1:
-        ' Handle 5 byte FP5
-        A$ = "JSR": B$ = "FP5_DIV": C$ = "Do FP5 division, Divide 5,S / ,S then S=S+5 result is @ ,S": GoSub AO
-End Select
     Case 12 ' Both are FP 10 bytes
         A$ = "JSR": B$ = "DB_DIV": C$ = "Do FP 8 byte (IEEE_754) Division on the stack and adjust the stack": GoSub AO
 End Select
 Return
+
+
 
 ' Enter with LeftType set, RightType set & LargestType set
 ' Value1 & Value2 are on the stack LeftType=Value1 Type & RightType=Value2 Type, Set LargestType
@@ -448,7 +395,7 @@ Select Case Largesttype
     Case 10
         GoTo Exp8ByteUInt
     Case 11
-        GoTo ExpSingleFloat
+        GoTo Exp3ByteFloat
     Case 12
         GoTo Exp10ByteFloat
 End Select
@@ -466,15 +413,8 @@ LastType = NVTExponent ' Type that is on the stack
 NVT = NT_Single ' Convert number to FFP
 ' Convert LastType @,S to (Numeric Variable Type) NVT @S, will only change it, if they differ
 GoSub ConvertLastType2NVT
-Z$ = "; Doing Exponents, Left & Right are Single": GoSub AO
-Select Case FloatType
-    Case 0:
-        ' Handle 3 byte FFP
+Z$ = "; Doing Exponents, Left & Right are FFP": GoSub AO
 A$ = "JSR": B$ = "FFP_POW": C$ = "Compute Power 3,S ^ ,S Then S=S+3 result @ ,S": GoSub AO
-    Case 1:
-        ' Handle 5 byte FP5
-A$ = "JSR": B$ = "FP5_POW": C$ = "Compute Power 5,S ^ ,S Then S=S+5 result @ ,S": GoSub AO
-End Select
 LastType = NT_Single ' FFP number on the stack
 NVT = NT_Byte ' Convert number to Signed 8 bit number
 ' Convert LastType @,S to (Numeric Variable Type) NVT @S, will only change it, if they differ
@@ -494,15 +434,8 @@ LastType = NVTExponent ' Type that is on the stack
 NVT = NT_Single ' Convert number to FFP
 ' Convert LastType @,S to (Numeric Variable Type) NVT @S, will only change it, if they differ
 GoSub ConvertLastType2NVT
-Z$ = "; Doing Exponents, Left & Right are Single": GoSub AO
-Select Case FloatType
-    Case 0:
-        ' Handle 3 byte FFP
+Z$ = "; Doing Exponents, Left & Right are FFP": GoSub AO
 A$ = "JSR": B$ = "FFP_POW": C$ = "Compute Power 3,S ^ ,S Then S=S+3 result @ ,S": GoSub AO
-    Case 1:
-        ' Handle 5 byte FP5
-A$ = "JSR": B$ = "FP5_POW": C$ = "Compute Power 5,S ^ ,S Then S=S+5 result @ ,S": GoSub AO
-End Select
 LastType = NT_Single ' FFP number on the stack
 NVT = NT_UByte ' Convert number to Unsigned 8 bit number
 ' Convert LastType @,S to (Numeric Variable Type) NVT @S, will only change it, if they differ
@@ -644,16 +577,9 @@ NVT = NT_UInt64 ' Convert number to signed 32 bit number
 ' Convert LastType @,S to (Numeric Variable Type) NVT @S, will only change it, if they differ
 GoSub ConvertLastType2NVT
 Return
-ExpSingleFloat:
+Exp3ByteFloat:
 Z$ = "; Doing Exponents, Left & right are FFP": GoSub AO
-Select Case FloatType
-    Case 0:
-        ' Handle 3 byte FFP
 A$ = "JSR": B$ = "FFP_POW": C$ = "Compute Power 3,S ^ ,S Then S=S+3 result @ ,S": GoSub AO
-    Case 1:
-        ' Handle 5 byte FP5
-A$ = "JSR": B$ = "FP5_POW": C$ = "Compute Power 5,S ^ ,S Then S=S+5 result @ ,S": GoSub AO
-End Select
 Return
 Exp10ByteFloat:
 ' In order to use the routines below we have to swap the Value2 & Value1 locations on the stack
@@ -697,17 +623,9 @@ Select Case Largesttype
         A$ = "DECB": C$ = "Decrement counter": GoSub AO
         A$ = "BNE": B$ = "<": C$ = "Loop until we reach 0": GoSub AO
     Case 11
-        ' Both are Single format
-Select Case FloatType
-    Case 0:
-        ' Handle 3 byte FFP
+        ' Both are FP 3 bytes in FFP format
         Z$ = "; Write code to handle AND with FFP values on the stack": GoSub AO
         A$ = "LEAS": B$ = "3,S": C$ = "For now just keeping value 2 as the result": GoSub AO
-    Case 1:
-        ' Handle 5 byte FP5
-        Z$ = "; Write code to handle AND with FP5 values on the stack": GoSub AO
-        A$ = "LEAS": B$ = "5,S": C$ = "For now just keeping value 2 as the result": GoSub AO
-End Select
     Case 12
         ' Both are FP 10 bytes
         Z$ = "; Write code to handle AND with Double values on the stack": GoSub AO
@@ -750,17 +668,10 @@ Select Case Largesttype
         A$ = "STA": B$ = ",X+": C$ = "Save new value, move to the next byte": GoSub AO
         A$ = "DECB": C$ = "Decrement counter": GoSub AO
         A$ = "BNE": B$ = "<": C$ = "Loop until we reach 0": GoSub AO
-    Case 11 ' Both are Single format
-Select Case FloatType
-    Case 0:
-        ' Handle 3 byte FFP
+    Case 11
+        ' Both are FP 3 bytes in FFP format
         Z$ = "; Write code to handle OR with FFP values on the stack": GoSub AO
         A$ = "LEAS": B$ = "3,S": C$ = "For now just keeping value 2 as the result": GoSub AO
-    Case 1:
-        ' Handle 5 byte FP5
-        Z$ = "; Write code to handle OR with FP5 values on the stack": GoSub AO
-        A$ = "LEAS": B$ = "5,S": C$ = "For now just keeping value 2 as the result": GoSub AO
-End Select
     Case 12
         ' Both are FP 10 bytes
         Z$ = "; Write code to handle OR with Double values on the stack": GoSub AO
@@ -844,17 +755,10 @@ Select Case Largesttype
         A$ = "STA": B$ = ",X+": C$ = "Save new value, move to the next byte": GoSub AO
         A$ = "DECB": C$ = "Decrement counter": GoSub AO
         A$ = "BNE": B$ = "<": C$ = "Loop until we reach 0": GoSub AO
-    Case 11 ' Both are Single format
-Select Case FloatType
-    Case 0:
-        ' Handle 3 byte FFP
+    Case 11
+        ' Both are FP 3 bytes in FFP format
         Z$ = "; Write code to handle EOR with FFP values on the stack": GoSub AO
         A$ = "LEAS": B$ = "3,S": C$ = "For now just keeping value 2 as the result": GoSub AO
-    Case 1:
-        ' Handle 5 byte FP5
-        Z$ = "; Write code to handle EOR with FP5 values on the stack": GoSub AO
-        A$ = "LEAS": B$ = "5,S": C$ = "For now just keeping value 2 as the result": GoSub AO
-End Select
     Case 12
         ' Both are FP 10 bytes
         Z$ = "; Write code to handle EOR with Double values on the stack": GoSub AO
@@ -985,15 +889,8 @@ Select Case Largesttype
         A$ = "STU": B$ = "B,S": C$ = "Save bytes": GoSub AO
         A$ = "SUBB": B$ = "#2": C$ = "Decrement the pointer by two": GoSub AO
         A$ = "BPL": B$ = "<": C$ = "Loop": GoSub AO
-    Case 11 ' Both are Single format
-Select Case FloatType
-    Case 0:
-        ' Handle 3 byte FFP
+    Case 11 ' Both are FP 3 bytes in FFP format
         A$ = "JSR": B$ = "FFP_MOD": C$ = "Compute the remainder of division using dividend is @ 3,S and the divisor is @ ,S then S=S+3 result is @ ,S": GoSub AO
-    Case 1:
-        ' Handle 5 byte FP5
-        A$ = "JSR": B$ = "FP5_MOD": C$ = "Compute the remainder of division using dividend is @ 5,S and the divisor is @ ,S then S=S+5 result is @ ,S": GoSub AO
-End Select
     Case 12 ' Both are FP 10 bytes
         A$ = "JSR": B$ = "DB_MOD": C$ = "Compute the remainder of division using dividend is @ 10,S and the divisor is @ ,S then S=S+10 result is @ ,S": GoSub AO
 End Select
@@ -1072,18 +969,10 @@ Select Case Largesttype
                 A$ = "JSR": B$ = "Div_UnSigned_NoRounding_64": C$ = "64 bit division: 8,S / ,S ; Stack moved forward and ,S = result, 64 bit remainder @ Remainder": GoSub AO
             End If
         End If
-    Case 11 ' Both are Single format
-Select Case FloatType
-    Case 0:
-        ' Handle 3 byte FFP
+    Case 11 ' Both are FP 3 bytes in FFP format
         A$ = "JSR": B$ = "FFP_DIV": C$ = "Do FFP division, Divide 3,S / ,S then S=S+3 result is @ ,S": GoSub AO
         A$ = "JSR": B$ = "FFP_FLOOR": C$ = "Compute floor(x) x is @ ,S return with FFP value @,S which is the INTeger value of ,S": GoSub AO
-        Case 1:
-        ' Handle 5 byte FP5
-        A$ = "JSR": B$ = "FP5_DIV": C$ = "Do FP5 division, Divide 5,S / ,S then S=S+5 result is @ ,S": GoSub AO
-        A$ = "JSR": B$ = "FP5_FLOOR": C$ = "Compute floor(x) x is @ ,S return with FP5 value @,S which is the INTeger value of ,S": GoSub AO
-    End Select
-Case 12 ' Both are FP 10 bytes
+    Case 12 ' Both are FP 10 bytes
         A$ = "JSR": B$ = "DB_DIV": C$ = "Do FP 8 byte (IEEE_754) Division on the stack and adjust the stack": GoSub AO
         A$ = "JSR": B$ = "DB_FLOOR": C$ = "Compute INT(x) x is @ ,S return with Double value @,S which is the INTeger vale of ,S": GoSub AO
 End Select

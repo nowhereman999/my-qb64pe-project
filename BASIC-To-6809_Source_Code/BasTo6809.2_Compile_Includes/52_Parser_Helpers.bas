@@ -30,14 +30,7 @@ Select Case LastType 'Already in the correct format
         A$ = "LEAS": B$ = "8,S": C$ = "Fix the stack": GoSub AO
         Return
     Case NT_Single ' Convert a FP number to D
-        Select Case FloatType
-            Case 0:
-                ' Handle 3 byte FFP
-                A$ = "JSR": B$ = "FFP_TO_S16": C$ = "Convert FFP at ,S to Signed 16 bit integer @ ,S": GoSub AO
-            Case 1:
-                ' Handle 5 byte FP5
-                A$ = "JSR": B$ = "FP5_TO_S16": C$ = "Convert FP5 at ,S to Signed 16 bit integer @ ,S": GoSub AO
-        End Select
+        A$ = "JSR": B$ = "FFP_TO_S16": C$ = "Convert FFP at ,S to Signed 16 bit integer @ ,S": GoSub AO
         A$ = "PULS": B$ = "D": C$ = "Get value in D and fix the stack": GoSub AO
         Return
     Case NT_Double ' Convert a Double FP number to D
@@ -78,14 +71,7 @@ Select Case LastType 'Already in the correct format
         A$ = "LEAS": B$ = "8,S": C$ = "Fix the stack": GoSub AO
         Return
     Case NT_Single ' Convert a Single number to D
-        Select Case FloatType
-            Case 0:
-                ' Handle 3 byte FFP
-                A$ = "JSR": B$ = "FFP_TO_U16": C$ = "Convert FFP at ,S to Unsigned 16 bit integer @ ,S": GoSub AO
-            Case 1:
-                ' Handle 5 byte FP5
-                A$ = "JSR": B$ = "FP5_TO_U16": C$ = "Convert FP5 at ,S to Unsigned 16 bit integer @ ,S": GoSub AO
-        End Select
+        A$ = "JSR": B$ = "FFP_TO_U16": C$ = "Convert FFP at ,S to Unsigned 16 bit integer @ ,S": GoSub AO
         A$ = "PULS": B$ = "D": C$ = "Get value in D and fix the stack": GoSub AO
         Return
     Case NT_Double ' Convert a Double FP number to D
@@ -126,14 +112,7 @@ Select Case LastType
         A$ = "LEAS": B$ = "8,S": C$ = "Fix the stack": GoSub AO
         Return
     Case NT_Single ' Convert a Single number to D
-        Select Case FloatType
-            Case 0:
-                ' Handle 3 byte FFP
-                A$ = "JSR": B$ = "FFP_TO_S16": C$ = "Convert FFP at ,S to Signed 16 bit integer @ ,S": GoSub AO
-            Case 1:
-                ' Handle 5 byte FP5
-                A$ = "JSR": B$ = "FP5_TO_S16": C$ = "Convert FP5 at ,S to Signed 16 bit integer @ ,S": GoSub AO
-        End Select
+        A$ = "JSR": B$ = "FFP_TO_S16": C$ = "Convert FFP at ,S to Signed 16 bit integer @ ,S": GoSub AO
         A$ = "PULS": B$ = "D": C$ = "Get value in D and fix the stack": GoSub AO
         Return
     Case NT_Double ' Convert a Double FP number to D
@@ -174,14 +153,7 @@ Select Case LastType
         A$ = "LEAS": B$ = "8,S": C$ = "Fix the stack": GoSub AO
         Return
     Case NT_Single ' Convert a Single number to D
-        Select Case FloatType
-            Case 0:
-                ' Handle 3 byte FFP
-            A$ = "JSR": B$ = "FFP_TO_U16": C$ = "Convert FFP at ,S to Unsigned 16 bit integer @ ,S": GoSub AO
-            Case 1:
-                ' Handle 5 byte FP5
-            A$ = "JSR": B$ = "FP5_TO_U16": C$ = "Convert FP5 at ,S to Unsigned 16 bit integer @ ,S": GoSub AO
-        End Select
+        A$ = "JSR": B$ = "FFP_TO_U16": C$ = "Convert FFP at ,S to Unsigned 16 bit integer @ ,S": GoSub AO
         A$ = "PULS": B$ = "D": C$ = "Get value in D and fix the stack": GoSub AO
         Return
     Case NT_Double ' Convert a Double FP number to D
