@@ -1074,7 +1074,6 @@ Select Case cmd16
         ' ------------------------------------------------------------
         Arg1$ = ProcessRPNStack$(ProcessRPNStackPointer)
         ProcessRPNStackPointer = ProcessRPNStackPointer - 1
-        ' Type check: PEEK expects numeric, not string
         Temp$ = Arg1$: GoSub IsStringToken
         If IsStrFlag% Then
             Print "Error: SDC_DIRPAGE() expects a numeric argument";: GoTo FoundError
@@ -1093,12 +1092,12 @@ Select Case cmd16
         ' CODEGEN: runtime stub
         ' Convention: address is at ,S (UInt16). Stub consumes it and pushes value.
         ' ------------------------------------------------------------
+        A$ = "LEAS": B$ = "1,S": C$ = "Fix the stack, this command doesn't really need a value in the brackets": GoSub AO
         A$ = "LDU": B$ = "#_StrVar_PF01": C$ = "U points at scratch buffer for the 256 byte directory listing": GoSub AO
         A$ = "JSR": B$ = "SDC_DirectoryPage": C$ = "Get the directory listing": GoSub AO
         A$ = "PSHS": B$ = "B": C$ = "Save B (result of the command) on the stack": GoSub AO
         ' ------------------------------------------------------------
         ' PUSH RESULT MARKER: one result replaces the popped arg
-        ' Pick the type you want PEEK() to return:
         '   - NT_UByte (0..255) is typical
         ' ------------------------------------------------------------
         ProcessRPNStackPointer = ProcessRPNStackPointer + 1
@@ -1164,7 +1163,7 @@ Select Case cmd16
         ' This will do the right thing for:
         '   - string var (F3...)
         '   - string literal (F5 22 ... F5 22)
-        '   - string result marker (&HF9) => already on 6809 stack
+        '   - string result marker (TK_STR_ONSTACK) => already on 6809 stack
         ' ------------------------------------------------------------
         Temp$ = Arg1$: GoSub PushOneStringTokenOnStack
         ' Call runtime: consumes string @,S and leaves result (NT_UByte) @,S
@@ -1199,7 +1198,7 @@ Select Case cmd16
         ' This will do the right thing for:
         '   - string var (F3...)
         '   - string literal (F5 22 ... F5 22)
-        '   - string result marker (&HF9) => already on 6809 stack
+        '   - string result marker (TK_STR_ONSTACK) => already on 6809 stack
         ' ------------------------------------------------------------
         Temp$ = Arg1$: GoSub PushOneStringTokenOnStack
         ' Call runtime: consumes string @,S and leaves result (NT_UByte) @,S
@@ -1234,7 +1233,7 @@ Select Case cmd16
         ' This will do the right thing for:
         '   - string var (F3...)
         '   - string literal (F5 22 ... F5 22)
-        '   - string result marker (&HF9) => already on 6809 stack
+        '   - string result marker (TK_STR_ONSTACK) => already on 6809 stack
         ' ------------------------------------------------------------
         Temp$ = Arg1$: GoSub PushOneStringTokenOnStack
         ' Call runtime: consumes string @,S and leaves result (NT_UByte) @,S
@@ -1269,7 +1268,7 @@ Select Case cmd16
         ' This will do the right thing for:
         '   - string var (F3...)
         '   - string literal (F5 22 ... F5 22)
-        '   - string result marker (&HF9) => already on 6809 stack
+        '   - string result marker (TK_STR_ONSTACK) => already on 6809 stack
         ' ------------------------------------------------------------
         Temp$ = Arg1$: GoSub PushOneStringTokenOnStack
         ' Call runtime: consumes string @,S and leaves result (NT_UByte) @,S
@@ -1342,7 +1341,7 @@ Select Case cmd16
         ' This will do the right thing for:
         '   - string var (F3...)
         '   - string literal (F5 22 ... F5 22)
-        '   - string result marker (&HF9) => already on 6809 stack
+        '   - string result marker (TK_STR_ONSTACK) => already on 6809 stack
         ' ------------------------------------------------------------
         Temp$ = Arg1$: GoSub PushOneStringTokenOnStack ' Make sure it's only one byte on the stack
         ' Call runtime: consumes string @,S and leaves length (NT_UByte) @,S
@@ -1351,7 +1350,7 @@ Select Case cmd16
         ' ------------------------------------------------------------
         A$ = "PULS": B$ = "B": C$ = "B = Length of the string": GoSub AO
         A$ = "LEAX": B$ = ",S": C$ = "X=S": GoSub AO
-        A$ = "LDA": B$ = ",S": C$ = "A First byet of the string": GoSub AO
+        A$ = "LDA": B$ = ",S": C$ = "A First byte of the string": GoSub AO
         A$ = "ABX": C$ = "Fix the size of the stack (just in case it's a sting instead of just a byte)": GoSub AO
         A$ = "LEAS": B$ = ",X": C$ = "S=X": GoSub AO
         A$ = "PSHS": B$ = "A": C$ = "Save A on the stack": GoSub AO
@@ -1536,7 +1535,7 @@ Select Case cmd16
         ' This will do the right thing for:
         '   - string var (F3...)
         '   - string literal (F5 22 ... F5 22)
-        '   - string result marker (&HF9) => already on 6809 stack
+        '   - string result marker (TK_STR_ONSTACK) => already on 6809 stack
         ' ------------------------------------------------------------
         Temp$ = Arg1$: GoSub PushOneStringTokenOnStack
         ' Call runtime: consumes string @,S and leaves length (NT_UByte) @,S
@@ -1553,6 +1552,55 @@ Select Case cmd16
         ProcessRPNStackPointer = ProcessRPNStackPointer + 1
         ProcessRPNStack$(ProcessRPNStackPointer) = Chr$(&HFA) + Chr$(0) + Chr$(0) + Chr$(NT_UByte)
         Return
+
+Case VAL_CMD
+        ' ------------------------------------------------------------
+        ' VAL(x) : one argument, expects string
+        '
+        ' Phase 2:
+        '   1) Fold direct string literals at compile time
+        '   2) For non-literals, choose the best runtime numeric type
+        '      from current compiler context
+        ' ------------------------------------------------------------
+        If ArgCnt <> 1 Then
+            Print "Error: VAL() expects one argument";: GoTo FoundError
+        End If
+
+        ' Pop argument token from ProcessRPN stack
+        Arg1$ = ProcessRPNStack$(ProcessRPNStackPointer)
+        ProcessRPNStackPointer = ProcessRPNStackPointer - 1
+
+        ' VAL requires a string argument
+        Temp$ = Arg1$: GoSub IsStringToken
+        If IsStrFlag% = 0 Then
+            Print "Error: VAL() expects a string";: GoTo FoundError
+        End If
+
+        ' Choose preferred type FIRST so compile-time folding can match
+        ' the same type the runtime conversion would have used.
+        GoSub ChooseVALPreferredType
+
+        ' ------------------------------------------------------------
+        ' FAST PATH: compile-time fold direct string literal
+        ' ------------------------------------------------------------
+        Temp$ = Arg1$: GoSub TryFoldVALStringLiteral
+        If VALFolded <> 0 Then
+            ProcessRPNStackPointer = ProcessRPNStackPointer + 1
+            ProcessRPNStack$(ProcessRPNStackPointer) = VALFoldToken$
+            Return
+        End If
+
+        ' ------------------------------------------------------------
+        ' RUNTIME PATH
+        ' ------------------------------------------------------------
+
+        Temp$ = Arg1$: GoSub PushOneStringTokenOnStack
+        GoSub EmitVALRuntimeConversion
+
+        ProcessRPNStackPointer = ProcessRPNStackPointer + 1
+        ProcessRPNStack$(ProcessRPNStackPointer) = Chr$(&HFA) + Chr$(0) + Chr$(0) + Chr$(VALPreferredType)
+        Return
+
     Case VARPTR_CMD
         If ArgCnt <> 1 Then Print "Error: VARPTR() expects 1 argument";: GoTo FoundError
         Arg1$ = ProcessRPNStack$(ProcessRPNStackPointer)
@@ -1591,39 +1639,9 @@ Select Case cmd16
         ProcessRPNStackPointer = ProcessRPNStackPointer + 1
         ProcessRPNStack$(ProcessRPNStackPointer) = Chr$(&HFA) + Chr$(0) + Chr$(0) + Chr$(NT_UInt16)
         Return
-    Case VAL_CMD
-        ' VAL(x) : one arg
-        If ArgCnt <> 1 Then
-            Print "Error: VAL() expects one argument";: GoTo FoundError
-        End If
-        ' ------------------------------------------------------------
-        ' POP: pull the argument token off the ProcessRPN stack
-        ' (it should be on the top because RPN puts args before the func)
-        ' ------------------------------------------------------------
-        Arg1$ = ProcessRPNStack$(ProcessRPNStackPointer)
-        ProcessRPNStackPointer = ProcessRPNStackPointer - 1
-        ' Type check: VAL requires a string
-        Temp$ = Arg1$: GoSub IsStringToken
-        If IsStrFlag% = 0 Then
-            Print "Error: VAL() expects a string";: GoTo FoundError
-        End If
-        ' ------------------------------------------------------------
-        ' PUSH: put the argument value onto the 6809 stack
-        ' This will do the right thing for:
-        '   - string var (F3...)
-        '   - string literal (F5 22 ... F5 22)
-        '   - string result marker (&HF9) => already on 6809 stack
-        ' ------------------------------------------------------------
-        Temp$ = Arg1$: GoSub PushOneStringTokenOnStack
-        ' Call runtime: consumes string @,S and leaves length (NT_UByte) @,S
-        A$ = "JSR": B$ = "NumericString_To_FFP": C$ = "Convert string @,S to FFP @,S": GoSub AO
-        ' ------------------------------------------------------------
-        ' PUSH RESULT: replace stack top with numeric-on-6809-stack marker
-        ' Net effect: 1 arg popped, 1 result pushed.
-        ' ------------------------------------------------------------
-        ProcessRPNStackPointer = ProcessRPNStackPointer + 1
-        ProcessRPNStack$(ProcessRPNStackPointer) = Chr$(&HFA) + Chr$(0) + Chr$(0) + Chr$(NT_Single)
-        Return
+
+
+        
     Case SGN_CMD
         If ArgCnt <> 1 Then
             Print "Error: SGN() expects one argument";: GoTo FoundError
@@ -1666,7 +1684,7 @@ Select Case cmd16
                 A$ = "LDX": B$ = ",S": C$ = "Load B": GoSub AO
                 A$ = "BNE": B$ = "@NotZero": C$ = "Not zero value": GoSub AO
                 A$ = "LDX": B$ = "2,S": C$ = "Load B": GoSub AO
-                A$ = "BEQ": B$ = "@GotA": C$ = "If it's zero then we FFP is zero": GoSub AO
+                A$ = "BEQ": B$ = "@GotA": C$ = "If it's zero then we exit with zero": GoSub AO
                 Z$ = "@NotZero": GoSub AO
                 A$ = "LDB": B$ = ",S": C$ = "B has the sign": GoSub AO
                 A$ = "SEX": C$ = "Sign extend into A": GoSub AO
@@ -1689,14 +1707,16 @@ Select Case cmd16
                 Z$ = "@GotA:": GoSub AO
                 A$ = "LEAS": B$ = "7,S": C$ = "move stack": GoSub AO
             Case Is = NT_Single ' FFP number
+                A$ = "CLRA": C$ = "A = 0": GoSub AO
                 A$ = "LDB": B$ = "1,S": C$ = "Check Mantissa MSB": GoSub AO
                 A$ = "BEQ": B$ = "@GotA": C$ = "If it's zero then FFP is zero": GoSub AO
                 A$ = "SEX": C$ = "Sign extend into A": GoSub AO
                 A$ = "BMI": B$ = "@GotA": C$ = "save -1 on the stack": GoSub AO
                 A$ = "INCA": C$ = "Make A = 1": GoSub AO
                 Z$ = "@GotA:": GoSub AO
-                A$ = "LEAS": B$ = "2,S": C$ = "move stack": GoSub AO
+                A$ = "LEAS": B$ = "4,S": C$ = "move stack": GoSub AO
             Case Is = NT_Double ' Double number
+                A$ = "CLRA": C$ = "A = 0": GoSub AO
                 A$ = "LDB": B$ = "3,S": C$ = "Get Mantissa bits, should always have bit 52 set, unless it's zero": GoSub AO
                 A$ = "BEQ": B$ = "@GotA": C$ = "If it's zero then Double is zero": GoSub AO
                 A$ = "LDB": B$ = ",S": C$ = "get Sign value": GoSub AO
@@ -1740,18 +1760,34 @@ Select Case cmd16
         ' Handle SGN based of the numeric type
         Select Case LastType
             Case Is = NT_Single ' FFP number
-                A$ = "LDB": B$ = ",S": C$ = "Check Sign": GoSub AO
-                A$ = "BMI": B$ = "@DoNEG": C$ = "If it's Negative then do make positive and do INT": GoSub AO
-                A$ = "JSR": B$ = "FFP_FLOOR": C$ = "Compute floor(x) for 3 byte FFP number": GoSub AO
-                A$ = "BRA": B$ = ">": C$ = "Skip past": GoSub AO
-                Z$="@DoNEG:": GOSUB AO
-                A$ = "ANDB": B$ = "#%01111111": C$ = "Make it positive": GoSub AO
-                A$ = "STB": B$ = ",S": C$ = "Save Positive version": GoSub AO
-                A$ = "JSR": B$ = "FFP_FLOOR": C$ = "Compute floor(x) for 3 byte FFP number": GoSub AO
-                A$ = "LDB": B$ = ",S": C$ = "Get Sign&Exponent": GoSub AO
-                A$ = "ORB": B$ = "#%10000000": C$ = "Make it Negative": GoSub AO
-                A$ = "STB": B$ = ",S": C$ = "Save Negative version": GoSub AO
-                Z$ = "!":  GoSub AO:gosub AO
+                Select Case FloatType
+                    Case 0:
+                        A$ = "LDB": B$ = ",S": C$ = "Check Sign": GoSub AO
+                        A$ = "BMI": B$ = "@DoNEG": C$ = "If it's Negative then do make positive and do INT": GoSub AO
+                        A$ = "JSR": B$ = "FFP_FLOOR": C$ = "Compute floor(x) for 3 byte FFP number": GoSub AO
+                        A$ = "BRA": B$ = ">": C$ = "Skip past": GoSub AO
+                        Z$="@DoNEG:": GOSUB AO
+                        A$ = "ANDB": B$ = "#%01111111": C$ = "Make it positive": GoSub AO
+                        A$ = "STB": B$ = ",S": C$ = "Save Positive version": GoSub AO
+                        A$ = "JSR": B$ = "FFP_FLOOR": C$ = "Compute floor(x) for 3 byte FFP number": GoSub AO
+                        A$ = "LDB": B$ = ",S": C$ = "Get Sign&Exponent": GoSub AO
+                        A$ = "ORB": B$ = "#%10000000": C$ = "Make it Negative": GoSub AO
+                        A$ = "STB": B$ = ",S": C$ = "Save Negative version": GoSub AO
+                        Z$ = "!":  GoSub AO:gosub AO
+                    Case 1:
+                        A$ = "LDB": B$ = ",S": C$ = "Check Sign": GoSub AO
+                        A$ = "BMI": B$ = "@DoNEG": C$ = "If it's Negative then do make positive and do INT": GoSub AO
+                        A$ = "JSR": B$ = "FP5_FLOOR": C$ = "Compute floor(x) for 5 byte FP5 number": GoSub AO
+                        A$ = "BRA": B$ = ">": C$ = "Skip past": GoSub AO
+                        Z$="@DoNEG:": GOSUB AO
+                        A$ = "ANDB": B$ = "#%01111111": C$ = "Make it positive": GoSub AO
+                        A$ = "STB": B$ = ",S": C$ = "Save Positive version": GoSub AO
+                        A$ = "JSR": B$ = "FP5_FLOOR": C$ = "Compute floor(x) for 5 byte FP5 number": GoSub AO
+                        A$ = "LDB": B$ = ",S": C$ = "Get Sign&Exponent": GoSub AO
+                        A$ = "ORB": B$ = "#%10000000": C$ = "Make it Negative": GoSub AO
+                        A$ = "STB": B$ = ",S": C$ = "Save Negative version": GoSub AO
+                        Z$ = "!":  GoSub AO:gosub AO
+                End Select
             Case Is = NT_Double ' Double number
                 A$ = "LDB": B$ = ",S": C$ = "Check Sign": GoSub AO
                 A$ = "BMI": B$ = "@DoNEG": C$ = "If it's Negative then do make positive and do INT": GoSub AO
@@ -1835,7 +1871,6 @@ Select Case cmd16
         A$ = "PSHS": B$ = "B": C$ = "Save B on the stack": GoSub AO
         ' ------------------------------------------------------------
         ' PUSH RESULT MARKER: one result replaces the popped arg
-        ' Pick the type you want PEEK() to return:
         '   - NT_UByte (0..255) is typical
         ' ------------------------------------------------------------
         ProcessRPNStackPointer = ProcessRPNStackPointer + 1
@@ -1882,13 +1917,24 @@ Select Case cmd16
                 A$ = "JSR": B$ = "Random64": C$ = "Get random number from 1 to value on the stack, result is on the stack": GoSub AO
             Case NT_Single
                 ' Get a FFP random number
-                A$ = "LDB": B$ = "1,S": C$ = "Check for Special zero": GoSub AO
-                A$ = "BNE": B$ = ">": C$ = "Do normal Random if not zero": GoSub AO
-                A$ = "LEAS": B$ = "3,S": C$ = "Fix the stack": GoSub AO
-                A$ = "JSR": B$ = "RandomFFP_Zero": C$ = "Get random number >0 and <1, result is on the stack": GoSub AO
-                A$ = "BRA": B$ = "@Done": C$ = "Do normal Random if not zero": GoSub AO
-                Z$ = "!": A$ = "JSR": B$ = "RandomFFP": C$ = "Get random number from 1 to value on the stack, result is on the stack": GoSub AO
-                Z$ = "@Done": GoSub AO: GoSub AO
+                Select Case FloatType
+                    Case 0:
+                        A$ = "LDB": B$ = "1,S": C$ = "Check for Special zero": GoSub AO
+                        A$ = "BNE": B$ = ">": C$ = "Do normal Random if not zero": GoSub AO
+                        A$ = "LEAS": B$ = "3,S": C$ = "Fix the stack": GoSub AO
+                        A$ = "JSR": B$ = "RandomFFP_Zero": C$ = "Get random number >0 and <1, result is on the stack": GoSub AO
+                        A$ = "BRA": B$ = "@Done": C$ = "Do normal Random if not zero": GoSub AO
+                        Z$ = "!": A$ = "JSR": B$ = "RandomFFP": C$ = "Get random number from 1 to value on the stack, result is on the stack": GoSub AO
+                        Z$ = "@Done": GoSub AO: GoSub AO
+                    Case 1:
+                        A$ = "LDB": B$ = "1,S": C$ = "Check for Special zero": GoSub AO
+                        A$ = "BNE": B$ = ">": C$ = "Do normal Random if not zero": GoSub AO
+                        A$ = "LEAS": B$ = "5,S": C$ = "Fix the stack": GoSub AO
+                        A$ = "JSR": B$ = "RandomFP5_Zero": C$ = "Get random number >0 and <1, result is on the stack": GoSub AO
+                        A$ = "BRA": B$ = "@Done": C$ = "Do normal Random if not zero": GoSub AO
+                        Z$ = "!": A$ = "JSR": B$ = "RandomFP5": C$ = "Get random number from 1 to value on the stack, result is on the stack": GoSub AO
+                        Z$ = "@Done": GoSub AO: GoSub AO
+                End Select
             Case NT_Double
                 ' Get a Double random number
                 A$ = "LDB": B$ = "3,S": C$ = "Check for Special zero": GoSub AO
@@ -1901,8 +1947,6 @@ Select Case cmd16
         End Select
         ' ------------------------------------------------------------
         ' PUSH RESULT MARKER: one result replaces the popped arg
-        ' Pick the type you want PEEK() to return:
-        '   - NT_UByte (0..255) is typical
         ' ------------------------------------------------------------
         ProcessRPNStackPointer = ProcessRPNStackPointer + 1
         ProcessRPNStack$(ProcessRPNStackPointer) = Chr$(&HFA) + Chr$(0) + Chr$(0) + Chr$(LastType)
@@ -2202,8 +2246,14 @@ DoINT:
 'GoSub ParseNumericExpression ' Parse Expression$ and return with value at ,S & Variable LastType with the datatype of that variable
 Select Case LastType
     Case 11
-        ' Handle 3 byte FFP
-        A$ = "JSR": B$ = "FFP_FLOOR": C$ = "Compute floor(x) for 3 byte FFP number": GoSub AO
+        Select Case FloatType
+            Case 0:
+                ' Handle 3 byte FFP
+                A$ = "JSR": B$ = "FFP_FLOOR": C$ = "Compute floor(x) for 3 byte FFP number": GoSub AO
+            Case 1:
+                ' Handle 5 byte FP5
+                A$ = "JSR": B$ = "FP5_FLOOR": C$ = "Compute floor(x) for 5 byte FFP number": GoSub AO
+        End Select        
     Case 12
         ' Handle 10 byte Double
         A$ = "JSR": B$ = "DB_FLOOR": C$ = "Compute floor(x) for 10 byte double-precision number": GoSub AO
@@ -2249,7 +2299,14 @@ Select Case LastType
         Z$ = "!": GoSub AO
     Case 11
         ' Handle FFP
-        A$ = "LDB": B$ = ",S": C$ = "Get the Sign of the FFP number": GoSub AO
+        Select Case FloatType
+            Case 0:
+                ' Handle 3 byte FFP
+                A$ = "LDB": B$ = ",S": C$ = "Get the Sign of the FFP number": GoSub AO
+            Case 1:
+                ' Handle 5 byte FP5
+                A$ = "LDB": B$ = ",S": C$ = "Get the Sign of the FP5 number": GoSub AO
+        End Select
         A$ = "ANDB": B$ = "#$7F": C$ = "clear the sign bit": GoSub AO
         A$ = "STB": B$ = ",S": C$ = "store it back": GoSub AO
     Case 12
@@ -2272,13 +2329,27 @@ Select Case LastType
         NVT = NT_Single 'Convert to FFP
         GoSub ConvertLastType2NVT ' Convert LastType @,S to (Numeric Variable Type) NVT @S, will only change it, if they differ
         LastType = NT_Single
-        A$ = "JSR": B$ = "FFP_SQRT": C$ = "Compute the Square Root of the FFP # @ ,S save result @ ,S": GoSub AO
+        Select Case FloatType
+            Case 0:
+                ' Handle 3 byte FFP
+                A$ = "JSR": B$ = "FFP_SQRT": C$ = "Compute the Square Root of the FFP # @ ,S save result @ ,S": GoSub AO
+            Case 1:
+                ' Handle 5 byte FP5
+                A$ = "JSR": B$ = "FP5_SQRT": C$ = "Compute the Square Root of the FP5 # @ ,S save result @ ,S": GoSub AO
+        End Select
         NVT = OrigLastType
         GoSub ConvertLastType2NVT ' Convert LastType @,S to (Numeric Variable Type) NVT @S, will only change it, if they differ
         LastType = OrigLastType
     Case 11
         ' Handle FFP
-        A$ = "JSR": B$ = "FFP_SQRT": C$ = "Compute the Square Root of the FFP # @ ,S save result @ ,S": GoSub AO
+        Select Case FloatType
+            Case 0:
+                ' Handle 3 byte FFP
+                A$ = "JSR": B$ = "FFP_SQRT": C$ = "Compute the Square Root of the FFP # @ ,S save result @ ,S": GoSub AO
+            Case 1:
+                ' Handle 5 byte FP5
+                A$ = "JSR": B$ = "FP5_SQRT": C$ = "Compute the Square Root of the FP5 # @ ,S save result @ ,S": GoSub AO
+        End Select
     Case 12
         ' Handle Double
         A$ = "JSR": B$ = "DB_SQRT": C$ = "Compute the Square Root of the Double # @ ,S save result @ ,S": GoSub AO
@@ -2299,13 +2370,27 @@ Select Case LastType
         NVT = NT_Single 'Convert to FFP
         GoSub ConvertLastType2NVT ' Convert LastType @,S to (Numeric Variable Type) NVT @S, will only change it, if they differ
         LastType = NT_Single
-        A$ = "JSR": B$ = "FFP_SIN": C$ = "Compute the Sine of the FFP # @ ,S save result @ ,S": GoSub AO
+        Select Case FloatType
+            Case 0:
+                ' Handle 3 byte FFP
+                A$ = "JSR": B$ = "FFP_SIN": C$ = "Compute the Sine of the FFP # @ ,S save result @ ,S": GoSub AO
+            Case 1:
+                ' Handle 5 byte FP5
+                A$ = "JSR": B$ = "FP5_SIN": C$ = "Compute the Sine of the FP5 # @ ,S save result @ ,S": GoSub AO
+        End Select
         NVT = OrigLastType
         GoSub ConvertLastType2NVT ' Convert LastType @,S to (Numeric Variable Type) NVT @S, will only change it, if they differ
         LastType = OrigLastType
     Case 11
         ' Handle FFP
-        A$ = "JSR": B$ = "FFP_SIN": C$ = "Compute the Sine of the FFP # @ ,S save result @ ,S": GoSub AO
+        Select Case FloatType
+            Case 0:
+                ' Handle 3 byte FFP
+                A$ = "JSR": B$ = "FFP_SIN": C$ = "Compute the Sine of the FFP # @ ,S save result @ ,S": GoSub AO
+            Case 1:
+                ' Handle 5 byte FP5
+                A$ = "JSR": B$ = "FP5_SIN": C$ = "Compute the Sine of the FP5 # @ ,S save result @ ,S": GoSub AO
+        End Select
     Case 12
         ' Handle Double
         A$ = "JSR": B$ = "DB_SIN": C$ = "Compute the Sine of the Double # @ ,S save result @ ,S": GoSub AO
@@ -2326,13 +2411,27 @@ Select Case LastType
         NVT = NT_Single 'Convert to FFP
         GoSub ConvertLastType2NVT ' Convert LastType @,S to (Numeric Variable Type) NVT @S, will only change it, if they differ
         LastType = NT_Single
-        A$ = "JSR": B$ = "FFP_COS": C$ = "Compute the Cosine of the FFP # @ ,S save result @ ,S": GoSub AO
+        Select Case FloatType
+            Case 0:
+                ' Handle 3 byte FFP
+                A$ = "JSR": B$ = "FFP_COS": C$ = "Compute the Cosine of the FFP # @ ,S save result @ ,S": GoSub AO
+            Case 1:
+                ' Handle 5 byte FP5
+                A$ = "JSR": B$ = "FP5_COS": C$ = "Compute the Cosine of the FP5 # @ ,S save result @ ,S": GoSub AO
+        End Select
         NVT = OrigLastType
         GoSub ConvertLastType2NVT ' Convert LastType @,S to (Numeric Variable Type) NVT @S, will only change it, if they differ
         LastType = OrigLastType
     Case 11
         ' Handle FFP
-        A$ = "JSR": B$ = "FFP_COS": C$ = "Compute the Cosine of the FFP # @ ,S save result @ ,S": GoSub AO
+        Select Case FloatType
+            Case 0:
+                ' Handle 3 byte FFP
+                A$ = "JSR": B$ = "FFP_COS": C$ = "Compute the Cosine of the FFP # @ ,S save result @ ,S": GoSub AO
+            Case 1:
+                ' Handle 5 byte FP5
+                A$ = "JSR": B$ = "FP5_COS": C$ = "Compute the Cosine of the FP5 # @ ,S save result @ ,S": GoSub AO
+        End Select
     Case 12
         ' Handle Double
         A$ = "JSR": B$ = "DB_COS": C$ = "Compute the Cosine of the Double # @ ,S save result @ ,S": GoSub AO
@@ -2353,13 +2452,27 @@ Select Case LastType
         NVT = NT_Single 'Convert to FFP
         GoSub ConvertLastType2NVT ' Convert LastType @,S to (Numeric Variable Type) NVT @S, will only change it, if they differ
         LastType = NT_Single
-        A$ = "JSR": B$ = "FFP_TAN": C$ = "Compute the Tangent of the FFP # @ ,S save result @ ,S": GoSub AO
+        Select Case FloatType
+            Case 0:
+                ' Handle 3 byte FFP
+                A$ = "JSR": B$ = "FFP_TAN": C$ = "Compute the Tangent of the FFP # @ ,S save result @ ,S": GoSub AO
+            Case 1:
+                ' Handle 5 byte FP5
+                A$ = "JSR": B$ = "FP5_TAN": C$ = "Compute the Tangent of the FP5 # @ ,S save result @ ,S": GoSub AO
+        End Select
         NVT = OrigLastType
         GoSub ConvertLastType2NVT ' Convert LastType @,S to (Numeric Variable Type) NVT @S, will only change it, if they differ
         LastType = OrigLastType
     Case 11
         ' Handle FFP
-        A$ = "JSR": B$ = "FFP_TAN": C$ = "Compute the Tangent of the FFP # @ ,S save result @ ,S": GoSub AO
+        Select Case FloatType
+            Case 0:
+                ' Handle 3 byte FFP
+                A$ = "JSR": B$ = "FFP_TAN": C$ = "Compute the Tangent of the FFP # @ ,S save result @ ,S": GoSub AO
+            Case 1:
+                ' Handle 5 byte FP5
+                A$ = "JSR": B$ = "FP5_TAN": C$ = "Compute the Tangent of the FP5 # @ ,S save result @ ,S": GoSub AO
+        End Select
     Case 12
         ' Handle Double
         A$ = "JSR": B$ = "DB_TAN": C$ = "Compute the Tangent of the Double # @ ,S save result @ ,S": GoSub AO
@@ -2380,13 +2493,27 @@ Select Case LastType
         NVT = NT_Single 'Convert to FFP
         GoSub ConvertLastType2NVT ' Convert LastType @,S to (Numeric Variable Type) NVT @S, will only change it, if they differ
         LastType = NT_Single
-        A$ = "JSR": B$ = "FFP_ATAN": C$ = "Compute the ArcTangent of the FFP # @ ,S save result @ ,S": GoSub AO
+        Select Case FloatType
+            Case 0:
+                ' Handle 3 byte FFP
+                A$ = "JSR": B$ = "FFP_ATAN": C$ = "Compute the ArcTangent of the FFP # @ ,S save result @ ,S": GoSub AO
+            Case 1:
+                ' Handle 5 byte FP5
+                A$ = "JSR": B$ = "FP5_ATAN": C$ = "Compute the ArcTangent of the FP5 # @ ,S save result @ ,S": GoSub AO
+        End Select
         NVT = OrigLastType
         GoSub ConvertLastType2NVT ' Convert LastType @,S to (Numeric Variable Type) NVT @S, will only change it, if they differ
         LastType = OrigLastType
     Case 11
         ' Handle FFP
-        A$ = "JSR": B$ = "FFP_ATAN": C$ = "Compute the ArcTangent of the FFP # @ ,S save result @ ,S": GoSub AO
+        Select Case FloatType
+            Case 0:
+                ' Handle 3 byte FFP
+                A$ = "JSR": B$ = "FFP_ATAN": C$ = "Compute the ArcTangent of the FFP # @ ,S save result @ ,S": GoSub AO
+            Case 1:
+                ' Handle 5 byte FP5
+                A$ = "JSR": B$ = "FP5_ATAN": C$ = "Compute the ArcTangent of the FP5 # @ ,S save result @ ,S": GoSub AO
+        End Select
     Case 12
         ' Handle Double
         A$ = "JSR": B$ = "DB_ATAN": C$ = "Compute the ArcTangent of the Double # @ ,S save result @ ,S": GoSub AO
@@ -2407,13 +2534,27 @@ Select Case LastType
         NVT = NT_Single 'Convert to FFP
         GoSub ConvertLastType2NVT ' Convert LastType @,S to (Numeric Variable Type) NVT @S, will only change it, if they differ
         LastType = NT_Single
-        A$ = "JSR": B$ = "FFP_EXP": C$ = "Compute the Exponential number of the FFP # @ ,S save result @ ,S": GoSub AO
+        Select Case FloatType
+            Case 0:
+                ' Handle 3 byte FFP
+                A$ = "JSR": B$ = "FFP_EXP": C$ = "Compute the Exponential number of the FFP # @ ,S save result @ ,S": GoSub AO
+            Case 1:
+                ' Handle 5 byte FP5
+                A$ = "JSR": B$ = "FP5_EXP": C$ = "Compute the Exponential number of the FP5 # @ ,S save result @ ,S": GoSub AO
+        End Select
         NVT = OrigLastType
         GoSub ConvertLastType2NVT ' Convert LastType @,S to (Numeric Variable Type) NVT @S, will only change it, if they differ
         LastType = OrigLastType
     Case 11
         ' Handle FFP
-        A$ = "JSR": B$ = "FFP_EXP": C$ = "Compute the Exponential number of the FFP # @ ,S save result @ ,S": GoSub AO
+        Select Case FloatType
+            Case 0:
+                ' Handle 3 byte FFP
+                A$ = "JSR": B$ = "FFP_EXP": C$ = "Compute the Exponential number of the FFP # @ ,S save result @ ,S": GoSub AO
+            Case 1:
+                ' Handle 5 byte FP5
+                A$ = "JSR": B$ = "FP5_EXP": C$ = "Compute the Exponential number of the FP5 # @ ,S save result @ ,S": GoSub AO
+        End Select
     Case 12
         ' Handle Double
         A$ = "JSR": B$ = "DB_EXP": C$ = "Compute the Exponential number of the Double # @ ,S save result @ ,S": GoSub AO
@@ -2434,13 +2575,27 @@ Select Case LastType
         NVT = NT_Single 'Convert to FFP
         GoSub ConvertLastType2NVT ' Convert LastType @,S to (Numeric Variable Type) NVT @S, will only change it, if they differ
         LastType = NT_Single
-        A$ = "JSR": B$ = "FFP_LOG": C$ = "Compute the Logarithm number of the FFP # @ ,S save result @ ,S": GoSub AO
+        Select Case FloatType
+            Case 0:
+                ' Handle 3 byte FFP
+                A$ = "JSR": B$ = "FFP_LOG": C$ = "Compute the Logarithm number of the FFP # @ ,S save result @ ,S": GoSub AO
+            Case 1:
+                ' Handle 5 byte FP5
+                A$ = "JSR": B$ = "FP5_LOG": C$ = "Compute the Logarithm number of the FP5 # @ ,S save result @ ,S": GoSub AO
+        End Select
         NVT = OrigLastType
         GoSub ConvertLastType2NVT ' Convert LastType @,S to (Numeric Variable Type) NVT @S, will only change it, if they differ
         LastType = OrigLastType
     Case 11
         ' Handle FFP
-        A$ = "JSR": B$ = "FFP_LOG": C$ = "Compute the Logarithm number of the FFP # @ ,S save result @ ,S": GoSub AO
+        Select Case FloatType
+            Case 0:
+                ' Handle 3 byte FFP
+                A$ = "JSR": B$ = "FFP_LOG": C$ = "Compute the Logarithm number of the FFP # @ ,S save result @ ,S": GoSub AO
+            Case 1:
+                ' Handle 5 byte FP5
+                A$ = "JSR": B$ = "FP5_LOG": C$ = "Compute the Logarithm number of the FP5 # @ ,S save result @ ,S": GoSub AO
+        End Select
     Case 12
         ' Handle Double
         A$ = "JSR": B$ = "DB_LOG": C$ = "Compute the Logarithm number of the Double # @ ,S save result @ ,S": GoSub AO

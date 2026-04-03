@@ -1,4 +1,50 @@
-V$ = "5.11"
+V$ = "5.26"
+'       - Fixed compare code GreaterOrEqualLS2RU1 it was corrupting the stack
+'       - Fixed the EqualSameType8 routine, needed a LEAS 15,S at the end was a type of LEAS 5,S
+'       - Fixed reversal of conversion code of FP5 types that were first in an expression
+'       - Fixed compares with Single and Double types
+
+' V 5.25
+'       - Fixed SDC_DIRPAGE(0), was causing a stack corruption
+'       - Fixed V=VAL("&H"+A$)
+'       - Fixed a problem with mixed two byte addition or subtraction one byte operations
+'       - Fixed String concat, like S$ = "HELLO "+ "WORLD" was backwards, although S$ = A$ + B$ was fine
+'       - Fixed STRING$(), was totally broken
+'       - Adding missing command SLEEP to the manual, command existed but I forgot to put it in the manual
+'       - Fixed a bunch of compare sizes that were incorrectly comparing the wrong types on the stack
+
+' V 5.22
+'       - Fix a bug with IF comparinge an _Unsigned _Byte and literal values that were greater than 127
+
+' V 5.21
+'       - Sped up VAL() command to now use Integer conversion instead of always doing String to Single then Single to INT
+'       - Fixed a bug in the DoREAD
+'       - Fixed a bug with GMODE 164 causing a hang of the compiler.  Assignment of variable needed to be LONG not integer
+'       - Fixed some bugs in array 8bit/16 bit assignments
+
+' V 5.2
+'       - Added New -m option that allows the user to select 3 byte or 5 byte floating point math with Type Single
+'         -m0 is 3 byte fast floating point option
+'         -m1 is 5 byte floating point option which is slower but more accurate than the 3 byte option
+'       - Fixed a bug where printing to 40,64 or 80 width screen could print a weird character if a control character is used
+'       - Fixed the INPUT command with WIDTH 40,64 & 80 mode
+'       - Fixed a bug with string commands that have commas in them (they were being treated like arrays)
+'       - Fixed a bug with VARPTR() given a numeric variable or string variable was using the value and not the address of the variable
+'       - Fixed a bug with variables that started with "FP_" as they were used in an older version of the compiler to identify floating
+'         point variables.  This is no longer needed and that code has been removed so variables that start with "FP_" will work as
+'         any other variable
+'       - Fixed a bug with MID$() if the start and length values were not Unisgned Byte format, it wouldn't give the correct value
+'       - Fixed a bug if there were comments after the LOADM command and it had an LOADM used an offset value
+'       - Fixed a bug with the CASE command not handling comma separated values properly
+'       - Fixed a bug with the IF command while doing logical operations like IF (X AND 1) = 1 THEN
+'       - Made the compiler smarter and faster when doing division of integers it will now do integer division instead of the old method
+'         of converting the numbers to floating point then doing the division and converting the result back to integer.
+
+' V 5.12
+'       - Fixed a bug that would corrupt the stack handling 8 bit arrays with 8 bit values
+'       - Optimized the set command (every graphic command uses set, so the more optized the better) for some high res screens
+
+' V 5.11
 '       - Fixed a major bug with comparisons of types that are not floating point, where the < & > were reversed
 '         Previously you can only trust + or <>, now all types are compared correctly.  The code produced is efficient and works well
 '         but the compiler is doing some double negatives while generating the 6809 code which really should be cleaned up (one day)
@@ -380,6 +426,7 @@ If count = 0 Then
     Print "       -coco     - A regular tokenized Color Computer BASIC program"
     Print "       -ascii    - A plain text BASIC program in regular ASCII, from a text editor or a program like QB64"
     Print "       -dragon   - Destination code is for a Dragon computer (Keyboard layout is different than a CoCo)"
+    Print "       -mx       - Sets the Accuracy of Single Type math numbers (0 = 3 bytes, 1 = 5 bytes)"
     Print "       -sxxx     - Sets the max length to reserve for strings in an array (default and max is 255 bytes)"
     Print "                   If your program needs more space and you aren't using larger strings this option"
     Print "                   can make your program use a lot less RAM"
@@ -401,7 +448,7 @@ If count = 0 Then
     Print "See Manual.pdf file for more help"
     System
 End If
-nt = 0: newp = 0: endp = 0: StringArraySize = 16: KeepTempFiles = 0: AutoStart = 0
+nt = 0: newp = 0: endp = 0: StringArraySize = 16: KeepTempFiles = 0: AutoStart = 0: FloatType = 0
 Optimize = 2 ' Default to optimize level 2
 Font$ = "Arcade_B0_F1" ' Default font to use for graphics screen
 
@@ -418,6 +465,7 @@ For check = 1 To count
     If LCase$(Left$(N$, 2)) = "-f" Then Font$ = Right$(N$, Len(N$) - 2): GoTo CheckNextCMDOption
     If LCase$(Left$(N$, 2)) = "-a" Then AutoStart = 1: GoTo CheckNextCMDOption
     If LCase$(Left$(N$, 2)) = "-r" Then Ret2Basic = 1: GoTo CheckNextCMDOption
+    If LCase$(Left$(N$, 2)) = "-m" Then FloatType = Val(Right$(N$, Len(N$) - 2)): GoTo CheckNextCMDOption
     If Left$(N$, 2) = "-v" Then
         ' Show the Version number and exit
         Print "BasTo6809 - BASIC to 6809 Assembly converter V"; V$
@@ -478,6 +526,7 @@ If InStr(LCase$(I$), "compileoptions") > 0 Then
         If LCase$(Left$(N$, 2)) = "-f" Then Font$ = Right$(N$, Len(N$) - 2)
         If LCase$(Left$(N$, 2)) = "-a" Then AutoStart = 1
         If LCase$(Left$(N$, 7)) = "-dragon" Then Dragon = 1
+        If LCase$(Left$(N$, 2)) = "-m" Then FloatType = Val(Right$(N$, Len(N$) - 2))
         If Left$(N$, 2) = "-v" Then
             ' Show the Version number and exit
             Print "BasTo6809 - BASIC to 6809 Assembly converter V"; V$
@@ -885,6 +934,8 @@ num = BASICMode: GoSub NumAsString 'Convert number in Num to a string without sp
 c$ = " -c" + Num$ + " "
 num = StringArraySize: GoSub NumAsString 'Convert number in Num to a string without spaces as Num$
 s$ = " -s" + Num$ + " "
+num = FloatType: GoSub NumAsString 'Convert number in Num to a string without spaces as Num$
+m$ = " -m" + Num$ + " "
 num = Optimize: GoSub NumAsString 'Convert number in Num to a string without spaces as Num$
 o$ = " -o" + Num$ + " "
 num = Verbose: GoSub NumAsString 'Convert number in Num to a string without spaces as Num$
@@ -905,11 +956,11 @@ If InStr(CompilerVersion$, "[MACOSX]") > 0 Or InStr(CompilerVersion$, "[LINUX]")
 Else
     PreString$ = ".\"
 End If
-returncode = Shell(PreString$ + "BasTo6809.1.Tokenizer " + c$ + s$ + o$ + b$ + Dragon$ + Verbose$ + p$ + f$ + AutoStart$ + Ret2Basic$ + OutName$)
+returncode = Shell(PreString$ + "BasTo6809.1.Tokenizer " + c$ + s$ + m$ + o$ + b$ + Dragon$ + Verbose$ + p$ + f$ + AutoStart$ + Ret2Basic$ + OutName$)
 If returncode = 0 Then System
 ' We now have the BASIC program in a good tokenized format as the file BasicTokenized.bin
 ' Call the compiler with a few command line options to pass through to the compiler
-returncode = Shell(PreString$ + "BasTo6809.2.Compile " + c$ + s$ + o$ + b$ + Dragon$ + Verbose$ + KeepTempFiles$ + AutoStart$ + Ret2Basic$ + OutName$)
+returncode = Shell(PreString$ + "BasTo6809.2.Compile " + c$ + s$ + m$ + o$ + b$ + Dragon$ + Verbose$ + KeepTempFiles$ + AutoStart$ + Ret2Basic$ + OutName$)
 If returncode = 0 Then System
 System
 
