@@ -47,7 +47,7 @@ jobs:
         id: compile
         shell: bash
         run: |
-          set -euo pipefail
+          set -eo pipefail
 
           QB64PE_DIR="$GITHUB_WORKSPACE/tools/qb64pe_mac_arm"
           ARTIFACT_DIR="$GITHUB_WORKSPACE/artifacts"
@@ -82,15 +82,20 @@ jobs:
           UNIQUE_ARRAY=()
           for f in "${FILE_ARRAY[@]}"; do
             found=0
-            for u in "${UNIQUE_ARRAY[@]}"; do
-              if [ "$u" = "$f" ]; then
-                found=1
-                break
-              fi
-            done
+            if [ ${#UNIQUE_ARRAY[@]} -gt 0 ]; then
+              for u in "${UNIQUE_ARRAY[@]}"; do
+                if [ "$u" = "$f" ]; then
+                  found=1
+                  break
+                fi
+              done
+            fi
             [ "$found" -eq 0 ] && UNIQUE_ARRAY+=("$f")
           done
-          FILE_ARRAY=("${UNIQUE_ARRAY[@]}")
+          FILE_ARRAY=()
+          if [ ${#UNIQUE_ARRAY[@]} -gt 0 ]; then
+            FILE_ARRAY=("${UNIQUE_ARRAY[@]}")
+          fi
 
           if [ ${#FILE_ARRAY[@]} -eq 0 ]; then
             echo "No .bas files to compile."
