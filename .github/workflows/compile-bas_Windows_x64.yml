@@ -1,4 +1,4 @@
-name: Compile BASIC_To_6809 (Windows x64)
+name: Compile BASIC_To_6809E (macOS x86)
 
 on:
   push:
@@ -22,192 +22,168 @@ on:
 
 jobs:
   build:
-    runs-on: windows-latest
-    env:
-      QB64PE_EXE: ${{ github.workspace }}\tools\qb64pe_Windows_x64\qb64pe.exe
-      ARTIFACTS_DIR: ${{ github.workspace }}\artifacts
-
+    runs-on: macos-15-intel
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Verify QB64-PE Windows x64 setup
-        shell: pwsh
+      - name: Verify QB64-PE x86 setup
         run: |
-          $qb64peDir = "$env:GITHUB_WORKSPACE\tools\qb64pe_Windows_x64"
-          Write-Host "Looking for QB64-PE in: $qb64peDir"
-          if (-not (Test-Path $qb64peDir)) {
-            Write-Error "ERROR: $qb64peDir missing! Commit the folder."
-            exit 1
-          }
-          if (-not (Test-Path $env:QB64PE_EXE)) {
-            Write-Error "qb64pe.exe missing!"
-            exit 1
-          }
-          if (-not (Test-Path "$qb64peDir\internal")) {
-            Write-Error "internal/ folder missing!"
-            exit 1
-          }
-          if (-not (Test-Path "$qb64peDir\Makefile")) {
-            Write-Error "Makefile missing!"
-            exit 1
-          }
-          Write-Host "QB64-PE setup verified."
+          QB64PE_DIR="$GITHUB_WORKSPACE/tools/qb64pe_mac_x86"
+          cd "$QB64PE_DIR"
+          [ -f "./qb64pe" ] || { echo "qb64pe missing!"; exit 1; }
+          [ -d "./internal" ] || { echo "internal/ missing!"; exit 1; }
+          [ -f "./Makefile" ] || { echo "Makefile missing!"; exit 1; }
 
-      - name: Create artifacts directory
-        shell: pwsh
-        run: New-Item -ItemType Directory -Force -Path "$env:ARTIFACTS_DIR" | Out-Null
+      - name: Make qb64pe executable
+        run: |
+          QB64PE_DIR="$GITHUB_WORKSPACE/tools/qb64pe_mac_x86"
+          chmod +x "$QB64PE_DIR/qb64pe"
+
+      - name: Install Xcode Command Line Tools
+        run: xcode-select --install || true
 
       - name: Compile selected .bas files
         id: compile
-        shell: pwsh
+        shell: bash
         run: |
-          $ErrorActionPreference = 'Stop'
+          set -eo pipefail
 
-          $qb64peDir = "$env:GITHUB_WORKSPACE\tools\qb64pe_Windows_x64"
-          $rootDir = "$env:GITHUB_WORKSPACE\BASIC-To-6809_Source_Code"
-          $filesToCompile = @()
-          $inputBasPaths = @'
-          ${{ inputs.bas_paths }}
-          '@
-          $inputBasPaths = $inputBasPaths.Trim()
+          QB64PE_DIR="$GITHUB_WORKSPACE/tools/qb64pe_mac_x86"
+          ARTIFACT_DIR="$GITHUB_WORKSPACE/artifacts"
+          mkdir -p "$ARTIFACT_DIR"
 
-          if ($inputBasPaths) {
-            $filesToCompile = $inputBasPaths -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ }
-          } else {
-            $rootFiles = Get-ChildItem -Path $rootDir -File | Where-Object {
-              $_.Extension -match '^\.[bB][aA][sS]$'
-            } | ForEach-Object { $_.FullName.Substring($env:GITHUB_WORKSPACE.Length + 1) }
+          ROOT_DIR="$GITHUB_WORKSPACE/BASIC-To-6809_Source_Code"
+          FILE_ARRAY=()
 
-            $sdecbPath = $null
-            foreach ($name in @("IDE\SDECB.bas", "IDE\SDECB.BAS")) {
-              $p = Join-Path $rootDir $name
-              if (Test-Path $p) {
-                $sdecbPath = $p.Substring($env:GITHUB_WORKSPACE.Length + 1)
-                break
-              }
-            }
+          if [ -n "${{ inputs.bas_paths }}" ]; then
+            IFS=',' read -r -a RAW_FILES <<< "${{ inputs.bas_paths }}"
+            for f in "${RAW_FILES[@]}"; do
+              # Trim leading/trailing whitespace, but keep spaces inside the filename.
+              f="$(printf '%s' "$f" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
+              [ -n "$f" ] && FILE_ARRAY+=("$f")
+            done
+          else
+            for f in "$ROOT_DIR"/*; do
+              if [[ -f "$f" && ("$f" == *.bas || "$f" == *.BAS) ]]; then
+                rel_path="${f#$GITHUB_WORKSPACE/}"
+                FILE_ARRAY+=("$rel_path")
+              fi
+            done
 
-            $filesToCompile = @($rootFiles)
-            if ($sdecbPath) { $filesToCompile += $sdecbPath }
-          }
+            if [ -f "$ROOT_DIR/IDE/SDECB.bas" ]; then
+              FILE_ARRAY+=("BASIC-To-6809_Source_Code/IDE/SDECB.bas")
+            elif [ -f "$ROOT_DIR/IDE/SDECB.BAS" ]; then
+              FILE_ARRAY+=("BASIC-To-6809_Source_Code/IDE/SDECB.BAS")
+            fi
+          fi
 
           # Remove duplicates safely, even when filenames contain spaces.
-          $filesToCompile = $filesToCompile | Where-Object { $_ } | Sort-Object -Unique
+          UNIQUE_ARRAY=()
+          for f in "${FILE_ARRAY[@]}"; do
+            found=0
+            for u in "${UNIQUE_ARRAY[@]:-}"; do
+              if [ "$u" = "$f" ]; then
+                found=1
+                break
+              fi
+            done
+            [ "$found" -eq 0 ] && UNIQUE_ARRAY+=("$f")
+          done
+          FILE_ARRAY=("${UNIQUE_ARRAY[@]:-}")
 
-          if ($filesToCompile.Count -eq 0) {
-            Write-Host "No .bas files to compile."
-            "executables=" >> $env:GITHUB_OUTPUT
-            "compiled_count=0" >> $env:GITHUB_OUTPUT
+          if [ ${#FILE_ARRAY[@]} -eq 0 ]; then
+            echo "No .bas files to compile."
+            echo "executables=" >> "$GITHUB_OUTPUT"
+            echo "compiled_count=0" >> "$GITHUB_OUTPUT"
             exit 0
-          }
+          fi
 
-          Write-Host "Compiling $($filesToCompile.Count) file(s):"
-          $filesToCompile | ForEach-Object { Write-Host " - $_" }
+          echo "Compiling ${#FILE_ARRAY[@]} file(s):"
+          printf ' - %s\n' "${FILE_ARRAY[@]}"
 
-          $executables = @()
-          $count = 0
+          EXECUTABLES=()
+          COUNT=0
 
-          foreach ($relPath in $filesToCompile) {
-            $fullPath = Join-Path $env:GITHUB_WORKSPACE $relPath
-            if (-not (Test-Path $fullPath)) {
-              Write-Error "Source file not found: $relPath"
+          for file in "${FILE_ARRAY[@]}"; do
+            [[ ! "$file" =~ \.[bB][aA][sS]$ ]] && continue
+
+            rel_dir="$(dirname "$file")"
+            filename="$(basename "$file")"
+            base="${filename%.*}"
+            full_dir="$GITHUB_WORKSPACE/$rel_dir"
+
+            echo "Compiling (in $rel_dir): $filename → $base"
+            cd "$full_dir"
+
+            if ! "$QB64PE_DIR/qb64pe" -x "$filename" -o "$base"; then
+              LOG_PATH="$QB64PE_DIR/internal/temp/compilelog.txt"
+              echo "=== COMPILATION ERROR ==="
+              if [ -f "$LOG_PATH" ]; then
+                cat "$LOG_PATH"
+              else
+                echo "compilelog.txt not found."
+              fi
+              echo "========================"
               exit 1
-            }
+            fi
 
-            $dir = Split-Path $fullPath -Parent
-            $filename = Split-Path $fullPath -Leaf
-            $base = [System.IO.Path]::GetFileNameWithoutExtension($filename)
+            [ -f "$base" ] || { echo "ERROR: $base was not created."; exit 1; }
 
-            Push-Location $dir
-            Write-Host "`nCompiling (in $(Split-Path $relPath -Parent)): $filename -> $base.exe"
+            cp "$base" "$ARTIFACT_DIR/$base"
+            rm -f "$base"
 
-            $process = Start-Process `
-              -FilePath $env:QB64PE_EXE `
-              -ArgumentList @("-x", $filename, "-o", "$base.exe") `
-              -Wait `
-              -PassThru `
-              -NoNewWindow `
-              -RedirectStandardOutput "$env:TEMP\qb64pe_stdout.txt" `
-              -RedirectStandardError "$env:TEMP\qb64pe_stderr.txt"
+            EXECUTABLES+=("$base")
+            COUNT=$((COUNT + 1))
+          done
 
-            if (Test-Path "$env:TEMP\qb64pe_stdout.txt") {
-              Get-Content "$env:TEMP\qb64pe_stdout.txt" | Write-Host
-            }
-            if (Test-Path "$env:TEMP\qb64pe_stderr.txt") {
-              Get-Content "$env:TEMP\qb64pe_stderr.txt" | Write-Host
-            }
+          {
+            echo "executables<<EOF"
+            printf '%s\n' "${EXECUTABLES[@]}"
+            echo "EOF"
+            echo "compiled_count=$COUNT"
+          } >> "$GITHUB_OUTPUT"
 
-            if ($process.ExitCode -ne 0) {
-              $logPath = "$qb64peDir\internal\temp\compilelog.txt"
-              Write-Host "`n=== COMPILATION ERROR ==="
-              if (Test-Path $logPath) { Get-Content $logPath | Write-Host }
-              else { Write-Host "compilelog.txt not found." }
-              Write-Host "=========================`n"
-              Pop-Location
-              exit 1
-            }
-
-            if (-not (Test-Path "$base.exe")) {
-              Write-Error "ERROR: $base.exe was not created!"
-              Pop-Location
-              exit 1
-            }
-
-            Write-Host "-> $base.exe created and copied to artifacts"
-            Copy-Item "$base.exe" "$env:ARTIFACTS_DIR\$base.exe" -Force
-            Remove-Item "$base.exe" -Force -ErrorAction SilentlyContinue
-            $executables += "$base.exe"
-            $count++
-            Pop-Location
-          }
-
-          "executables<<EOF" >> $env:GITHUB_OUTPUT
-          $executables | ForEach-Object { $_ >> $env:GITHUB_OUTPUT }
-          "EOF" >> $env:GITHUB_OUTPUT
-          "compiled_count=$count" >> $env:GITHUB_OUTPUT
+      - name: Remove quarantine attribute
+        if: steps.compile.outputs.compiled_count > 0
+        shell: bash
+        run: |
+          while IFS= read -r exe; do
+            [ -n "$exe" ] && xattr -dr com.apple.quarantine "$GITHUB_WORKSPACE/artifacts/$exe" 2>/dev/null || true
+          done <<< "${{ steps.compile.outputs.executables }}"
 
       - name: Create zip archive
         if: steps.compile.outputs.compiled_count > 0
-        shell: pwsh
+        shell: bash
         run: |
-          Set-Location "$env:ARTIFACTS_DIR"
-          $executablesOutput = @'
-          ${{ steps.compile.outputs.executables }}
-          '@
-          $exes = $executablesOutput -split "`n" | ForEach-Object { $_.TrimEnd("`r") } | Where-Object { $_ -ne '' }
-          Compress-Archive -LiteralPath $exes -DestinationPath qb64pe_Windows_x64_executables.zip -Force
-          Write-Host "Zipped $($exes.Count) executable(s)"
+          cd "$GITHUB_WORKSPACE/artifacts"
+          rm -f qb64pe_mac_x86_executables.zip
+
+          while IFS= read -r exe; do
+            [ -n "$exe" ] && zip qb64pe_mac_x86_executables.zip "$exe"
+          done <<< "${{ steps.compile.outputs.executables }}"
+
+          echo "Zipped ${{ steps.compile.outputs.compiled_count }} executable(s)"
 
       - name: Upload artifact
         if: steps.compile.outputs.compiled_count > 0
         uses: actions/upload-artifact@v4
         with:
-          name: qb64pe-windows-x64-executables
-          path: ${{ github.workspace }}\artifacts\qb64pe_Windows_x64_executables.zip
+          name: qb64pe-mac-x86-executables
+          path: ${{ github.workspace }}/artifacts/qb64pe_mac_x86_executables.zip
           retention-days: 30
 
       - name: Job summary
         if: success()
-        shell: pwsh
+        shell: bash
         run: |
-          $summary = "## QB64-PE Windows x64 Build Complete`n"
-          $summary += "Compiled **${{ steps.compile.outputs.compiled_count }}** program(s):`n`n"
+          echo "## QB64-PE macOS x86 Build Complete" >> "$GITHUB_STEP_SUMMARY"
+          echo "Compiled ${{ steps.compile.outputs.compiled_count }} program(s):" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
 
-          $executablesOutput = @'
-          ${{ steps.compile.outputs.executables }}
-          '@
-          $exeList = $executablesOutput -split "`n" | ForEach-Object { $_.TrimEnd("`r") } | Where-Object { $_ -ne '' }
+          while IFS= read -r exe; do
+            [ -n "$exe" ] && echo "- \`$exe\`" >> "$GITHUB_STEP_SUMMARY"
+          done <<< "${{ steps.compile.outputs.executables }}"
 
-          if ($exeList.Count -gt 0) {
-            foreach ($exe in $exeList) {
-              $summary += "- $exe`n"
-            }
-          } else {
-            $summary += "*No executables generated.*`n"
-          }
-
-          $summary += "`nDownload the zip from **Artifacts** below`n"
-          $summary += "*These are native Windows x64 executables.*`n"
-
-          $summary | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Download the zip from **Artifacts** below" >> "$GITHUB_STEP_SUMMARY"
