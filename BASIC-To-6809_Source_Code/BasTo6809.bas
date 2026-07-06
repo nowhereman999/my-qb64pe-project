@@ -1,4 +1,8 @@
-V$ = "5.32"
+V$ = "5.33"
+'       - Added command _FILEEXISTS("FILENAME") - check if a file exist on the floppy drive
+'       - Added command _SDC_FILEEXISTS("FILENAME",#) - check if a file exist on the SDC
+
+' V = 5.32
 '       - Fixed a bug in one of the Random routines where the initial entry might not be random
 '       - Fixed the calls to Select_AnalogMuxer and AnalogMuxOn from BSR to JSR as it could be necessary depending on the program
 
@@ -471,7 +475,7 @@ If count = 0 Then
     Print "       -fxxxx    - Where xxxx is the font name used for printing to the PMODE 4 screen (default is Arcade)"
     Print "                   Look in folder Basic_Includes/Graphic_Screen_Fonts to see font names available"
     Print "       -a        - Makes the program autostart after it is LOADed on the CoCo"
-    Print "       -r        - At the end of the program the compiler will try to return to BASIC, default is to do and endless loop"
+    Print "       -r        - At the end of the program the compiler will try to return to BASIC, default is to do an endless loop"
     Print "       -h        - Show this help message"
     Print
     Print "See Manual.pdf file for more help"
